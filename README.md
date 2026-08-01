@@ -1,0 +1,153 @@
+# Omarchy Window Switcher
+
+A keyboard-first window switcher for Omarchy. The window view lists windows in
+most-recently-used (MRU) order. Workspace views can use recent or number order.
+
+![Omarchy Window Switcher showing workspace previews](preview.webp)
+
+## Quick start
+
+1. Install the plugin from GitHub:
+
+   ```bash
+   omarchy plugin add https://github.com/devmobasa/omarchy-window-switcher.git --enable
+   ```
+
+2. Add this binding to `~/.config/hypr/bindings.lua`:
+
+   ```lua
+   hl.unbind("CTRL + TAB")
+   o.bind("CTRL + TAB", "Window switcher", "omarchy shell shell summon community.window-switcher '{\"direction\":1}'")
+   ```
+
+3. Reload the Hyprland configuration:
+
+   ```bash
+   hyprctl reload
+   hyprctl configerrors
+   ```
+
+4. Press Ctrl+Tab to open the switcher.
+
+The switcher selects the previously used window or workspace. Use Tab and
+Shift+Tab to move through the items. Press Enter to switch.
+
+## Features
+
+- Search by application, title, workspace, or monitor.
+- Filter windows with workspace pills.
+- Show a window grid or composite workspace previews.
+- Order workspace sections by recent use or workspace number.
+- Target the focused monitor in a multi-monitor layout.
+- Toggle minimized windows and include Hyprland special workspaces.
+- Use application icons as fallbacks for unavailable window capture.
+
+## Requirements
+
+- Omarchy Quattro with the schema-version-1 shell plugin host.
+- Quickshell 0.3.0 or newer with `ToplevelManager` and `ScreencopyView`.
+- Hyprland with `zwlr-foreign-toplevel-management-v1`.
+- `hyprland-toplevel-export-v1` for previews. Window switching works without it.
+
+The plugin uses QML and JavaScript. It does not start another Quickshell
+process, poll `hyprctl`, run background commands, or write preview images.
+
+## Controls
+
+| Input | Action |
+|---|---|
+| Tab / Shift+Tab | Select the next or previous item |
+| Arrow keys | Move through the grid |
+| Ctrl+H/J/K/L | Move through the grid with Vim-style keys |
+| Type / Backspace | Enter or edit a search query |
+| Enter or click | Activate the selected window |
+| Escape | Clear the search, show all windows, or close the switcher |
+| Ctrl+1 through Ctrl+9 | Filter by workspace 1 through 9 |
+| Ctrl+0 | Filter by workspace 10 |
+| Ctrl+A | Show all windows |
+| Ctrl+M | Show or hide minimized windows for the current opening |
+| Ctrl+O | Change workspace sections between recent and number order |
+| Ctrl+W | Change between the window and workspace views |
+| Ctrl+G | Group the window grid by workspace |
+| Ctrl+Delete | Request closure of the selected window in a window view |
+| Middle-click or the × button | Request closure of a window |
+| Workspace × button | Request closure of all windows on that workspace after a second click |
+
+A click outside the switcher closes it and restores the original window.
+
+## Configuration
+
+Configuration is part of the plugin entry in `~/.config/omarchy/shell.json`.
+This file is the canonical shell configuration and does not use a deep merge.
+
+The default view uses workspace cards, recent workspace order, and still
+previews. You can change the view, order, filter, capture, and activation.
+
+Read the [configuration reference](docs/configuration.md) for all keys,
+invocation payloads, limits, session behavior, and legacy compatibility.
+
+## Troubleshooting
+
+### The plugin does not open
+
+```bash
+omarchy plugin list --json | jq '.[] | select(.id == "community.window-switcher")'
+omarchy shell shell ping
+omarchy shell shell call community.window-switcher status ""
+omarchy shell shell rescanPlugins
+```
+
+Make sure that the plugin is enabled and present in `shell.json`.
+Remove private window data before you share diagnostic output.
+
+### Cards show icons without previews
+
+The compositor or a window does not provide capture access. Switching, search,
+and activation continue to work. Set `previewMode` to `none` to disable capture.
+
+### A window is missing
+
+Press Ctrl+A or select the All pill. The header count shows how many windows
+the current filter hides.
+
+If the window remains absent, collect `hyprctl clients -j` and the Wayland app
+ID. Remove private window titles before you report the error.
+
+## Development
+
+### Install a local checkout
+
+From the repository root, run the plugin validator:
+
+```bash
+omarchy plugin validate .
+```
+
+Then copy and enable the local checkout:
+
+```bash
+mkdir -p ~/.config/omarchy/plugins
+plugin_target="$HOME/.config/omarchy/plugins/community.window-switcher"
+[[ ! -e $plugin_target ]] && cp -a . "$plugin_target"
+omarchy shell shell rescanPlugins
+omarchy plugin enable community.window-switcher
+```
+
+The copy command does not replace an existing installation.
+
+### Run the tests
+
+Run the test suite from the repository root:
+
+```bash
+./test/all
+```
+
+The suite runs model tests, contract tests, manifest validation, and `qmllint`.
+Read [design and privacy](docs/design.md) for the component map and visual test
+scope.
+
+## License
+
+MIT. This project is a clean-room Omarchy integration based on public APIs and
+observed behavior. It does not copy GPL switcher implementations.
