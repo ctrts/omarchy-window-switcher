@@ -74,6 +74,33 @@ function boolValue(value, fallback) {
   return fallback
 }
 
+function normalizedWorkspaceName(value) {
+  if (typeof value !== "string") return ""
+  return value.replace(/\s+/g, " ").trim().slice(0, 48)
+}
+
+// Local aliases deliberately use positive numeric workspace IDs. They label
+// the switcher's stable 1..N cards without changing Hyprland's workspace name
+// or trying to pin an alias to a compositor-assigned special-workspace ID.
+function normalizeWorkspaceNames(value) {
+  var result = {}
+  if (!value || typeof value !== "object" || Array.isArray(value)) return result
+  for (var key in value) {
+    var id = Number(key)
+    var name = normalizedWorkspaceName(value[key])
+    if (!isFinite(id) || Math.floor(id) !== id || id <= 0 || !name) continue
+    result[String(id)] = name
+  }
+  return result
+}
+
+function workspaceAlias(workspaceNames, workspaceId) {
+  var id = Number(workspaceId)
+  if (!isFinite(id) || Math.floor(id) !== id || id <= 0) return ""
+  var names = workspaceNames || {}
+  return normalizedWorkspaceName(names[String(id)])
+}
+
 // A filter is {kind: "all"} or {kind: "workspace", id}. A null id means "the
 // workspace focused when the switcher opens" and is resolved by the caller.
 function normalizeFilter(value) {
@@ -137,6 +164,7 @@ function effectiveOptions(settings, payload) {
       WORKSPACE_ORDER_VALUES,
       WORKSPACE_ORDER_RECENT),
     workspaceOrderExplicit: invocation.workspaceOrder !== undefined,
+    workspaceNames: normalizeWorkspaceNames(stored.workspaceNames),
     stickyFilter: boolValue(pick("stickyFilter", false), false),
     previewMode: enumValue(pick("previewMode", PREVIEW_STILL), PREVIEW_VALUES, PREVIEW_STILL),
     activation: enumValue(pick("activation", ACTIVATION_EXPLICIT), ACTIVATION_VALUES, ACTIVATION_EXPLICIT),
@@ -149,20 +177,21 @@ function effectiveOptions(settings, payload) {
   }
 }
 
-function recordSearchText(record) {
+function recordSearchText(record, workspaceNames) {
   if (!record) return ""
   return [
     record.appName,
     record.appId,
     record.title,
+    workspaceAlias(workspaceNames, record.workspaceId),
     record.workspaceName,
     record.monitorName
   ].join(" ").toLowerCase()
 }
 
-function queryMatches(record, query) {
+function queryMatches(record, query, workspaceNames) {
   var terms = stringValue(query).toLowerCase().trim().split(/\s+/)
-  var haystack = recordSearchText(record)
+  var haystack = recordSearchText(record, workspaceNames)
   for (var i = 0; i < terms.length; i++) {
     if (terms[i] && haystack.indexOf(terms[i]) < 0) return false
   }
@@ -212,7 +241,7 @@ function filterMatches(record, filter, context) {
   return Number(record.workspaceId) === target
 }
 
-function filterWindows(records, query, filter, context, showMinimized, showSpecialWorkspaces) {
+function filterWindows(records, query, filter, context, showMinimized, showSpecialWorkspaces, workspaceNames) {
   var values = records || []
   var result = []
   for (var i = 0; i < values.length; i++) {
@@ -221,7 +250,7 @@ function filterWindows(records, query, filter, context, showMinimized, showSpeci
     if (!showMinimized && isMinimizedWindow(record)) continue
     if (!showSpecialWorkspaces && isSpecialWorkspace(record)) continue
     if (!filterMatches(record, filter, context)) continue
-    if (!queryMatches(record, query)) continue
+    if (!queryMatches(record, query, workspaceNames)) continue
     result.push(record)
   }
   return result
@@ -534,7 +563,7 @@ function orderByWorkspace(records, workspaceOrder, recentWorkspaceKeys) {
 
 // Consecutive runs of workspace-ordered records, with flat-list offsets so the
 // section views and grouped navigation share one index space.
-function groupWindows(records, totalRecords) {
+function groupWindows(records, totalRecords, workspaceNames) {
   var values = records || []
   var groups = []
 
@@ -558,16 +587,20 @@ function groupWindows(records, totalRecords) {
     var key = groupKey(record)
     var current = groups.length > 0 ? groups[groups.length - 1] : null
     if (!current || current.key !== key) {
-      var label = "No workspace"
+      var defaultLabel = "No workspace"
+      var label = defaultLabel
       if (key !== NO_WORKSPACE_KEY) {
-        label = isSpecialWorkspace(record)
+        var alias = workspaceAlias(workspaceNames, record.workspaceId)
+        defaultLabel = isSpecialWorkspace(record)
           ? workspaceChipLabel(record)
           : "Workspace " + (stringValue(record.workspaceName) || record.workspaceId)
+        label = alias || defaultLabel
       }
       current = {
         key: key,
         id: record.workspaceId,
         label: label,
+        defaultLabel: defaultLabel,
         startIndex: i,
         size: 0,
         totalSize: totals[key] || 0
@@ -626,6 +659,8 @@ if (typeof module !== "undefined") {
     PILL_WORKSPACE: PILL_WORKSPACE,
     PILL_LABEL: PILL_LABEL,
     parsePayload: parsePayload,
+    normalizeWorkspaceNames: normalizeWorkspaceNames,
+    workspaceAlias: workspaceAlias,
     normalizeFilter: normalizeFilter,
     effectiveOptions: effectiveOptions,
     queryMatches: queryMatches,

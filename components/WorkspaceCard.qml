@@ -16,10 +16,15 @@ Item {
   required property string previewMode
   required property int firstWindowIndex
   required property int captureLimit
+  required property var workspaceNames
   required property int animationMs
+  required property bool renaming
 
   signal activateRequested()
   signal closeAllRequested()
+  signal renameRequested()
+  signal renameCommitted(string name)
+  signal renameCancelled()
   signal hovered()
 
   readonly property var layout: WindowModel.workspaceLayout(windows)
@@ -35,6 +40,11 @@ Item {
     return 16 / 9
   }
   readonly property var frontWindow: windows.length > 0 ? windows[0] : null
+  readonly property string workspaceLabel: {
+    if (!groupData) return ""
+    var alias = WindowModel.workspaceAlias(workspaceNames, groupData.id)
+    return alias || String(groupData.defaultLabel || groupData.label || "")
+  }
   // Distinct application icons, most recent first, so a card answers
   // "what lives here" without reading the previews.
   readonly property var appIcons: {
@@ -54,15 +64,13 @@ Item {
   readonly property color cardColor: selected ? Color.menu.selectedBackground : Color.menu.background
   readonly property color cardBorder: selected ? Color.accent : Color.menu.border
 
+  function handlePointerClick(button) {
+    if (button === Qt.RightButton) renameRequested()
+    else activateRequested()
+  }
+
   scale: selected ? 1.025 : 1
   z: selected ? 2 : 1
-
-  Behavior on scale {
-    NumberAnimation {
-      duration: card.animationMs
-      easing.type: Easing.OutCubic
-    }
-  }
 
   HoverHandler {
     cursorShape: Qt.PointingHandCursor
@@ -78,10 +86,6 @@ Item {
     border.width: card.selected ? Math.max(2, Style.spacing.hairline) : Style.spacing.hairline
     border.color: card.cardBorder
     clip: true
-
-    Behavior on color {
-      ColorAnimation { duration: card.animationMs }
-    }
 
     Item {
       id: previewFrame
@@ -191,10 +195,11 @@ Item {
 
       MouseArea {
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        enabled: !card.renaming
         cursorShape: Qt.PointingHandCursor
         z: 50
-        onClicked: card.activateRequested()
+        onClicked: function(mouse) { card.handlePointerClick(mouse.button) }
       }
 
       CloseButton {
@@ -223,9 +228,10 @@ Item {
 
       MouseArea {
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        enabled: !card.renaming
         cursorShape: Qt.PointingHandCursor
-        onClicked: card.activateRequested()
+        onClicked: function(mouse) { card.handlePointerClick(mouse.button) }
       }
 
       Rectangle {
@@ -284,6 +290,8 @@ Item {
       }
 
       Item {
+        id: labelBlock
+
         anchors {
           left: numberChip.right
           leftMargin: Style.spacing.lg
@@ -301,13 +309,62 @@ Item {
             left: parent.left
             right: parent.right
           }
-          text: card.groupData ? card.groupData.label : ""
+          text: card.workspaceLabel
+          visible: !card.renaming
           color: card.selected ? Color.menu.selectedText : Color.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           font.weight: card.selected ? Font.DemiBold : Font.Medium
           elide: Text.ElideRight
           maximumLineCount: 1
+        }
+
+        TextInput {
+          id: nameEditor
+
+          anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+          }
+          visible: card.renaming
+          color: card.selected ? Color.menu.selectedText : Color.menu.text
+          selectionColor: Util.alpha(Color.accent, 0.45)
+          selectedTextColor: Color.menu.selectedText
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          font.weight: Font.DemiBold
+          maximumLength: 48
+          selectByMouse: true
+          clip: true
+
+          onVisibleChanged: {
+            if (!visible) return
+            text = card.workspaceLabel
+            Qt.callLater(function() {
+              if (!card.renaming) return
+              nameEditor.forceActiveFocus()
+              nameEditor.selectAll()
+            })
+          }
+
+          Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+              card.renameCommitted(nameEditor.text)
+              event.accepted = true
+            } else if (event.key === Qt.Key_Escape) {
+              card.renameCancelled()
+              event.accepted = true
+            }
+          }
+
+          Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Math.max(1, Style.spacing.hairline)
+            color: Color.accent
+          }
         }
 
         Text {

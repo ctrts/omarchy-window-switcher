@@ -9,6 +9,7 @@ RowLayout {
 
   required property string activationMode
   required property string previewMode
+  required property string viewMode
 
   spacing: Style.spacing.controlGap
 
@@ -24,7 +25,9 @@ RowLayout {
   }
 
   Text {
-    text: "Ctrl+1…9 filter · Ctrl+A all · Ctrl+M minimized · Ctrl+O order · Ctrl+W workspaces"
+    text: footer.viewMode === WindowModel.VIEW_WORKSPACES
+      ? "F2/right-click rename · Ctrl+1…9 filter · Ctrl+O order · Ctrl+W windows"
+      : "Ctrl+1…9 filter · Ctrl+A all · Ctrl+M minimized · Ctrl+O order · Ctrl+W workspaces"
     color: Util.alpha(Color.menu.text, 0.60)
     font.family: Style.font.family
     font.pixelSize: Style.font.caption

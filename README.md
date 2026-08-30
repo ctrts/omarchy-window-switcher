@@ -37,6 +37,7 @@ Shift+Tab to move through the items. Press Enter to switch.
 - Search by application, title, workspace, or monitor.
 - Filter windows with workspace pills.
 - Show a window grid or composite workspace previews.
+- Give numbered workspaces local names without renaming them in Hyprland.
 - Order workspace sections by recent use or workspace number.
 - Target the focused monitor in a multi-monitor layout.
 - Toggle minimized windows and include Hyprland special workspaces.
@@ -68,12 +69,16 @@ process, poll `hyprctl`, run background commands, or write preview images.
 | Ctrl+M | Show or hide minimized windows for the current opening |
 | Ctrl+O | Change workspace sections between recent and number order |
 | Ctrl+W | Change between the window and workspace views |
+| F2 or right-click a workspace card | Rename that workspace inside this switcher |
 | Ctrl+G | Group the window grid by workspace |
 | Ctrl+Delete | Request closure of the selected window in a window view |
 | Middle-click or the × button | Request closure of a window |
 | Workspace × button | Request closure of all windows on that workspace after a second click |
 
 A click outside the switcher closes it and restores the original window.
+Clear a workspace name in the editor to restore its default `Workspace N`
+label. Local names are saved in this plugin's `shell.json` entry; they do not
+change Hyprland or another workspace widget.
 
 ## Configuration
 

@@ -25,13 +25,6 @@ Item {
   scale: selected ? 1.025 : 1
   z: selected ? 2 : 1
 
-  Behavior on scale {
-    NumberAnimation {
-      duration: card.animationMs
-      easing.type: Easing.OutCubic
-    }
-  }
-
   HoverHandler {
     cursorShape: Qt.PointingHandCursor
     onHoveredChanged: if (hovered) card.hovered()
@@ -46,10 +39,6 @@ Item {
     border.width: card.selected ? Math.max(2, Style.spacing.hairline) : Style.spacing.hairline
     border.color: card.cardBorder
     clip: true
-
-    Behavior on color {
-      ColorAnimation { duration: card.animationMs }
-    }
 
     Item {
       id: previewFrame

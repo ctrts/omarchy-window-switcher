@@ -16,16 +16,21 @@ Item {
   required property bool switcherOpen
   required property string previewMode
   required property int captureLimit
+  required property var workspaceNames
   required property int animationMs
   required property string query
   required property var activeFilter
   required property int allWindowsCount
   required property int hiddenMinimizedCount
+  required property int renamingWorkspaceId
 
   signal cardHovered(int index)
   signal cardActivated(int index)
   signal cardCloseRequested(int index)
   signal cardCloseAllRequested(int index)
+  signal cardRenameRequested(int index)
+  signal cardRenameCommitted(int workspaceId, string name)
+  signal cardRenameCancelled()
 
   readonly property var flatMetrics: Metrics.compactRows(Metrics.gridMetrics(
     windows.length, width, height,
@@ -110,10 +115,15 @@ Item {
       switcherOpen: area.switcherOpen
       previewMode: area.previewMode
       captureLimit: area.captureLimit
+      workspaceNames: area.workspaceNames
       animationMs: area.animationMs
+      renamingWorkspaceId: area.renamingWorkspaceId
       onCardHovered: function(index) { area.cardHovered(index) }
       onCardActivated: function(index) { area.cardActivated(index) }
       onCardCloseAllRequested: function(index) { area.cardCloseAllRequested(index) }
+      onCardRenameRequested: function(index) { area.cardRenameRequested(index) }
+      onCardRenameCommitted: function(workspaceId, name) { area.cardRenameCommitted(workspaceId, name) }
+      onCardRenameCancelled: area.cardRenameCancelled()
     }
   }
 

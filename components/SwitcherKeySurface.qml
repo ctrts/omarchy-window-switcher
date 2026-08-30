@@ -10,6 +10,7 @@ Item {
   required property string query
   required property string activationMode
   required property bool releaseArmed
+  required property bool editingWorkspaceName
 
   signal escapePressed()
   signal commitRequested()
@@ -18,6 +19,7 @@ Item {
   signal allFilterRequested()
   signal minimizedToggleRequested()
   signal workspaceOrderToggleRequested()
+  signal workspaceRenameRequested()
   signal viewToggleRequested()
   signal groupToggleRequested()
   signal workspaceDigitPressed(int workspaceId)
@@ -27,6 +29,7 @@ Item {
 
   focus: true
 
+  Keys.enabled: !surface.editingWorkspaceName
   Keys.priority: Keys.BeforeItem
   Keys.onPressed: function(event) {
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -40,6 +43,9 @@ Item {
       event.accepted = true
     } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
       surface.stepRequested(event.key === Qt.Key_Backtab || shift ? -1 : 1)
+      event.accepted = true
+    } else if (event.key === Qt.Key_F2) {
+      surface.workspaceRenameRequested()
       event.accepted = true
     } else if (event.key === Qt.Key_Left || (ctrl && event.key === Qt.Key_H)) {
       surface.gridMoveRequested(-1, 0)

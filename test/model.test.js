@@ -19,6 +19,16 @@ assert.deepEqual(model.parsePayload('{"scope":"all"}'), { scope: 'all' })
 assert.deepEqual(model.parsePayload('not json'), {})
 assert.deepEqual(model.parsePayload('[]'), {})
 
+assert.deepEqual(model.normalizeWorkspaceNames({
+  1: '  Code   and docs  ',
+  2: '',
+  3: 42,
+  '-1': 'scratch',
+  nope: 'ignored'
+}), { 1: 'Code and docs' })
+assert.equal(model.workspaceAlias({ 7: 'Harnet' }, 7), 'Harnet')
+assert.equal(model.workspaceAlias({ '-7': 'Special' }, -7), '')
+
 // Filter normalization, including legacy scope names.
 assert.deepEqual(model.normalizeFilter('all'), { kind: 'all' })
 assert.deepEqual(model.normalizeFilter('monitor'), { kind: 'all' }, 'legacy monitor scope collapses into all')
@@ -42,6 +52,8 @@ assert.equal(model.effectiveOptions({}, {}).view, 'workspaces')
 assert.equal(model.effectiveOptions({}, {}).viewExplicit, false)
 assert.equal(model.effectiveOptions({}, {}).workspaceOrder, 'recent')
 assert.equal(model.effectiveOptions({}, {}).workspaceOrderExplicit, false)
+assert.deepEqual(model.effectiveOptions({ workspaceNames: { 5: 'Research' } }, {}).workspaceNames,
+  { 5: 'Research' })
 assert.equal(model.effectiveOptions({}, {}).stickyFilter, false)
 assert.equal(model.effectiveOptions({}, {}).maxInitialCaptures, 20)
 assert.equal(model.effectiveOptions({ groupByWorkspace: true }, {}).view, 'grouped',
@@ -71,6 +83,7 @@ assert.deepEqual(
     viewExplicit: false,
     workspaceOrder: 'recent',
     workspaceOrderExplicit: false,
+    workspaceNames: {},
     stickyFilter: false,
     previewMode: 'still',
     activation: 'explicit',
@@ -104,6 +117,7 @@ assert.deepEqual(
     viewExplicit: false,
     workspaceOrder: 'recent',
     workspaceOrderExplicit: false,
+    workspaceNames: {},
     stickyFilter: false,
     previewMode: 'liveSelected',
     activation: 'release',
@@ -132,6 +146,8 @@ assert.deepEqual(model.filterWindows(windows, '', CURRENT, context, true, true).
 assert.deepEqual(model.filterWindows(windows, '', { kind: 'workspace', id: 2 }, context, true, true).map(item => item.key), ['b'],
   'explicit workspace filter excludes the active special overlay')
 assert.deepEqual(model.filterWindows(windows, 'browser', ALL, context, true, true).map(item => item.key), ['b'])
+assert.deepEqual(model.filterWindows(windows, 'research', ALL, context, true, true,
+  { 2: 'Research' }).map(record => record.key), ['b'], 'local workspace aliases are searchable')
 assert.deepEqual(model.filterWindows(windows, '', ALL, context, true, false).map(item => item.key), ['a', 'b', 'd'])
 assert.deepEqual(model.filterWindows(windows, '', { kind: 'workspace', id: 1 }, context, false, true).map(item => item.key), ['a', 'c'])
 assert.deepEqual(model.filterWindows([
@@ -319,6 +335,12 @@ assert.deepEqual(groups.map(group => [group.label, group.startIndex, group.size,
   ['music', 3, 1, 1],
   ['No workspace', 4, 1, 1]
 ])
+assert.deepEqual(model.groupWindows(displayOrdered, displayOrdered, { 1: 'Vision', 2: 'Research' })
+  .map(group => group.label), ['Vision', 'Research', 'music', 'No workspace'],
+  'local aliases replace regular workspace card and section labels only')
+assert.deepEqual(model.groupWindows(displayOrdered, displayOrdered, { 1: 'Vision' })
+  .map(group => group.defaultLabel), ['Workspace 1', 'Workspace 2', 'music', 'No workspace'],
+  'groups retain alias-free labels so removing an alias does not require rebuilding cards')
 const searchedGroups = model.groupWindows(
   displayOrdered.filter(item => item.key === 'a'), displayOrdered)
 assert.equal(searchedGroups[0].size, 1, 'the card contains only search matches')

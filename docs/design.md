@@ -15,6 +15,10 @@ The plugin records each focused-workspace event. It freezes the workspace order
 when the switcher opens. Thus, cards do not move during keyboard or pointer
 selection.
 
+Numbered-workspace aliases belong to the switcher rather than the compositor.
+The host persists them in the plugin's `shell.json` entry after the overlay
+closes, avoiding a plugin reload in the middle of inline editing.
+
 After a shell reload, the plugin uses window MRU to fill missing workspace
 history. Focus events replace this estimate as the user changes workspaces.
 
@@ -37,14 +41,17 @@ construct shell commands from window metadata or invocation payloads.
 - `components/WindowCard.qml` creates a capture only for a scheduled window.
 - `components/WorkspaceCard.qml` places window captures at their reported
   workspace geometry.
+- The root capture ramp waits for refreshed compositor geometry and then
+  attaches capture sources in small batches instead of one blocking frame.
 
 If workspace geometry is not available, the workspace card uses an even tile
 layout. Minimized windows do not appear in a workspace preview.
 
 ## Privacy
 
-The plugin does not persist or log previews or full window titles. It does not
-send this data over the network or write preview images to disk.
+The plugin does not persist or log previews or full window titles. It persists
+only user-entered workspace aliases. It does not send this data over the
+network or write preview images to disk.
 
 The local `status()` method returns the selected title and address for
 diagnostics.

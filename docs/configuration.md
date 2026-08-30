@@ -11,6 +11,10 @@ This example shows all default values:
   "defaultFilter": "all",
   "view": "workspaces",
   "workspaceOrder": "recent",
+  "workspaceNames": {
+    "1": "Web",
+    "2": "Code"
+  },
   "stickyFilter": false,
   "previewMode": "still",
   "showMinimized": true,
@@ -28,6 +32,7 @@ This example shows all default values:
 | `defaultFilter` | `all`, `workspace`, or a workspace number | Selects the initial filter. `workspace` uses the focused workspace. |
 | `view` | `workspaces`, `windows`, or `grouped` | Selects the initial view. `grouped` divides the window grid into workspace sections. |
 | `workspaceOrder` | `recent` or `number` | Selects the order of workspace cards and grouped sections. |
+| `workspaceNames` | Object keyed by positive workspace number | Gives numbered workspaces local names inside this switcher. Names are limited to 48 characters. |
 | `stickyFilter` | `true` or `false` | Keeps the last selected workspace filter until the shell stops. |
 | `previewMode` | `none`, `still`, or `liveSelected` | Controls capture. `liveSelected` streams only the selected window preview. |
 | `showMinimized` | `true` or `false` | Sets the default visibility of compositor-minimized windows and windows on `special:minimized`. |
@@ -43,6 +48,12 @@ accepted ranges and limits a search query to 128 characters.
 
 The workspace view shows one composite card for each occupied workspace. At
 each opening, it selects the previous workspace.
+
+Press F2 on the selected workspace card, or right-click a card, to edit its
+local name. Enter saves it and Escape cancels. Saving an empty name restores
+the default `Workspace N` label. The plugin persists edits to `workspaceNames`
+in `shell.json`. These aliases are also searchable, but do not rename Hyprland
+workspaces or change another workspace widget.
 
 The window view shows a flat MRU grid. The first Tab press selects the previous
 window.
@@ -90,7 +101,9 @@ hides windows. If no window is minimized, the plugin does not show the control.
 ### Capture behavior
 
 `maxInitialCaptures` limits initial captures in all views. A selected window can
-use one capture outside this initial budget.
+use one capture outside this initial budget. After the initial geometry refresh,
+the switcher attaches capture sources progressively so a large budget does not
+stall the opening frame.
 
 For workspace cards, the budget limits the window previews in display order.
 The selected workspace has its own limit. Compositor-minimized windows do not
@@ -116,8 +129,8 @@ Open with the focused-workspace filter:
 omarchy shell shell summon community.window-switcher '{"direction":1,"filter":"workspace"}'
 ```
 
-The payload accepts each configuration key except `defaultFilter`. It also
-accepts these keys:
+The payload accepts each configuration key except `defaultFilter` and
+`workspaceNames`. It also accepts these keys:
 
 | Key | Accepted values | Description |
 |---|---|---|

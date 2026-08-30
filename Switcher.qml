@@ -39,6 +39,9 @@ Item {
   property var sessionView: null
   property string workspaceOrder: WindowModel.WORKSPACE_ORDER_RECENT
   property var sessionWorkspaceOrder: null
+  property var workspaceNames: ({})
+  property bool workspaceNamesDirty: false
+  property int renamingWorkspaceId: 0
   property var workspaceMruKeys: []
   property var openWorkspaceMruKeys: []
   property bool stickyFilter: false
@@ -47,6 +50,7 @@ Item {
   property bool showMinimized: true
   property bool showSpecialWorkspaces: true
   property int maxInitialCaptures: 20
+  property int activeCaptureLimit: 0
   property int animationMs: 140
   property bool modifierReleaseArmed: false
   property int openSerial: 0
@@ -93,6 +97,13 @@ Item {
     return -1
   }
 
+  function workspaceGroupIndexForId(workspaceId) {
+    for (var i = 0; i < windowGroups.length; i++) {
+      if (Number(windowGroups[i] && windowGroups[i].id) === Number(workspaceId)) return i
+    }
+    return -1
+  }
+
   function visibleItemCount() {
     return viewMode === WindowModel.VIEW_WORKSPACES ? windowGroups.length : filteredWindows.length
   }
@@ -107,7 +118,8 @@ Item {
     var previousIndex = selectedIndex
     var context = { focusedWorkspaceId: focusedWorkspaceId }
     var visibleAll = WindowModel.filterWindows(
-      allWindows, "", { kind: WindowModel.FILTER_ALL }, context, showMinimized, showSpecialWorkspaces)
+      allWindows, "", { kind: WindowModel.FILTER_ALL }, context, showMinimized,
+      showSpecialWorkspaces, workspaceNames)
     totalWindowCount = visibleAll.length
     pillRows = WindowModel.pillRows(visibleAll, context)
     // Counted over every window rather than the filtered set: the toggle is a
@@ -120,11 +132,12 @@ Item {
       activeFilter,
       context,
       showMinimized,
-      showSpecialWorkspaces)
+      showSpecialWorkspaces,
+      workspaceNames)
     hiddenMinimizedCount = 0
     if (!showMinimized) {
       var includingMinimized = WindowModel.filterWindows(
-        allWindows, query, activeFilter, context, true, showSpecialWorkspaces)
+        allWindows, query, activeFilter, context, true, showSpecialWorkspaces, workspaceNames)
       for (var hiddenIndex = 0; hiddenIndex < includingMinimized.length; hiddenIndex++) {
         if (WindowModel.isMinimizedWindow(includingMinimized[hiddenIndex])) hiddenMinimizedCount++
       }
@@ -134,7 +147,9 @@ Item {
       ? WindowModel.orderByWorkspace(ordered, workspaceOrder, openWorkspaceMruKeys)
       : ordered
     filteredWindows = next
-    windowGroups = sectioned ? WindowModel.groupWindows(next, visibleAll) : []
+    windowGroups = sectioned ? WindowModel.groupWindows(next, visibleAll, workspaceNames) : []
+    if (renamingWorkspaceId > 0 && workspaceGroupIndexForId(renamingWorkspaceId) < 0)
+      cancelWorkspaceRename()
 
     if (viewMode === WindowModel.VIEW_WORKSPACES) {
       if (windowGroups.length === 0) {
@@ -356,8 +371,77 @@ Item {
       : WindowModel.WORKSPACE_ORDER_RECENT)
   }
 
+  function beginWorkspaceRename(index) {
+    if (viewMode !== WindowModel.VIEW_WORKSPACES
+        || index < 0 || index >= windowGroups.length) return
+    var group = windowGroups[index]
+    var id = Number(group && group.id)
+    if (!isFinite(id) || Math.floor(id) !== id || id <= 0) return
+    selectIndex(index)
+    renamingWorkspaceId = id
+  }
+
+  function cancelWorkspaceRename() {
+    renamingWorkspaceId = 0
+    Qt.callLater(function() { if (root.opened) keySurface.forceActiveFocus() })
+  }
+
+  function setWorkspaceName(workspaceId, name) {
+    var id = Number(workspaceId)
+    if (!isFinite(id) || Math.floor(id) !== id || id <= 0
+        || id !== renamingWorkspaceId || workspaceGroupIndexForId(id) < 0) {
+      cancelWorkspaceRename()
+      return
+    }
+
+    var next = {}
+    for (var key in workspaceNames) next[key] = workspaceNames[key]
+    var candidate = {}
+    candidate[String(id)] = name
+    var normalized = WindowModel.normalizeWorkspaceNames(candidate)
+    if (normalized[String(id)]) next[String(id)] = normalized[String(id)]
+    else delete next[String(id)]
+
+    workspaceNames = WindowModel.normalizeWorkspaceNames(next)
+    workspaceNamesDirty = true
+    renamingWorkspaceId = 0
+    // Card labels bind directly to workspaceNames. Rebuilding the group model
+    // here would tear down every workspace delegate (and its screencopy
+    // resources) just to change one line of text. Search is the only case that
+    // needs a refilter because aliases participate in matching.
+    if (String(query || "").trim())
+      refreshFiltered(WindowModel.GROUP_SELECTION_PREFIX + String(id))
+    Qt.callLater(function() { if (root.opened) keySurface.forceActiveFocus() })
+  }
+
+  function beginCaptureRamp() {
+    captureRamp.stop()
+    activeCaptureLimit = 0
+    if (!opened || previewMode === WindowModel.PREVIEW_NONE) return
+    captureRamp.start()
+  }
+
+  function persistWorkspaceNames() {
+    if (!workspaceNamesDirty || !shell || typeof shell.updateEntryInline !== "function") return
+    workspaceNamesDirty = false
+    var current = pluginSettings()
+    var id = String(manifest && manifest.id ? manifest.id : "community.window-switcher")
+    var entry = { id: id }
+    for (var key in current) if (key !== "id" && key !== "workspaceNames") entry[key] = current[key]
+    var hasNames = false
+    for (var workspaceId in workspaceNames) {
+      hasNames = true
+      break
+    }
+    if (hasNames) entry.workspaceNames = workspaceNames
+    shell.updateEntryInline(id, entry)
+  }
+
   function beginClose() {
     if (!surfaceVisible) return
+    captureRamp.stop()
+    activeCaptureLimit = 0
+    renamingWorkspaceId = 0
     opened = false
     modifierReleaseArmed = false
     revealProgress = 0
@@ -439,6 +523,7 @@ Item {
     animationMs = options.animationMs
     viewMode = resolvedView(options)
     workspaceOrder = resolvedWorkspaceOrder(options)
+    if (!workspaceNamesDirty) workspaceNames = options.workspaceNames
     baseViewMode = viewMode !== WindowModel.VIEW_WORKSPACES ? viewMode
       : (options.view !== WindowModel.VIEW_WORKSPACES ? options.view : WindowModel.VIEW_WINDOWS)
     stickyFilter = options.stickyFilter
@@ -450,7 +535,11 @@ Item {
     var options = WindowModel.effectiveOptions(pluginSettings(), payload)
 
     if (opened) {
+      var previousPreviewMode = previewMode
+      var previousMaxInitialCaptures = maxInitialCaptures
       applyOptions(options)
+      if (previewMode !== previousPreviewMode
+          || maxInitialCaptures !== previousMaxInitialCaptures) beginCaptureRamp()
       if (payload.query !== undefined) updateQuery(options.query)
       else refreshFiltered(selectedKey())
       if (options.direction !== 0) selectAdjacent(options.direction)
@@ -469,6 +558,8 @@ Item {
     targetScreen = targetScreenForOpen()
     surfaceVisible = true
     opened = true
+    captureRamp.stop()
+    activeCaptureLimit = 0
     modifierReleaseArmed = false
     revealProgress = 0
     // Window geometry and focus history come from Hyprland's IPC snapshot,
@@ -503,6 +594,7 @@ Item {
       filter: activeFilter,
       view: viewMode,
       workspaceOrder: workspaceOrder,
+      workspaceNames: workspaceNames,
       workspaceCount: windowGroups.length,
       workspaceKeys: windowGroups.map(function(group) { return group.key }),
       workspaceHistory: openWorkspaceMruKeys,
@@ -511,6 +603,7 @@ Item {
       hiddenMinimizedCount: hiddenMinimizedCount,
       minimizedCount: minimizedCount,
       maxInitialCaptures: maxInitialCaptures,
+      activeCaptureLimit: activeCaptureLimit,
       targetScreen: targetScreen ? String(targetScreen.name || "") : ""
     })
   }
@@ -561,6 +654,7 @@ Item {
       root.targetScreen = null
       Qt.callLater(function() {
         if (serial === root.openSerial && !root.opened && target) target.activate()
+        if (serial === root.openSerial && !root.opened) root.persistWorkspaceNames()
       })
     }
   }
@@ -576,7 +670,29 @@ Item {
     id: geometrySettle
 
     interval: 160
-    onTriggered: root.rebuildWindows()
+    onTriggered: {
+      root.rebuildWindows()
+      if (root.activeCaptureLimit === 0) root.beginCaptureRamp()
+    }
+  }
+
+  // Creating a full set of screencopy sources in one frame can allocate
+  // hundreds of megabytes and visibly stall the shell. Wait for the initial
+  // compositor geometry roundtrip, then attach a few sources per frame.
+  Timer {
+    id: captureRamp
+
+    interval: 40
+    repeat: true
+    onTriggered: {
+      if (!root.opened || root.previewMode === WindowModel.PREVIEW_NONE) {
+        stop()
+        root.activeCaptureLimit = 0
+        return
+      }
+      root.activeCaptureLimit = Math.min(root.maxInitialCaptures, root.activeCaptureLimit + 2)
+      if (root.activeCaptureLimit >= root.maxInitialCaptures) stop()
+    }
   }
 
   Component.onCompleted: rebuildWindows()
@@ -620,6 +736,7 @@ Item {
       query: root.query
       activationMode: root.activationMode
       releaseArmed: root.modifierReleaseArmed
+      editingWorkspaceName: root.renamingWorkspaceId > 0
       onEscapePressed: {
         if (root.query) root.updateQuery("")
         else if (root.activeFilter.kind !== WindowModel.FILTER_ALL)
@@ -632,6 +749,7 @@ Item {
       onAllFilterRequested: root.setFilter({ kind: WindowModel.FILTER_ALL })
       onMinimizedToggleRequested: root.toggleMinimizedVisibility()
       onWorkspaceOrderToggleRequested: root.toggleWorkspaceOrder()
+      onWorkspaceRenameRequested: root.beginWorkspaceRename(root.selectedIndex)
       onViewToggleRequested: root.setViewMode(root.viewMode === WindowModel.VIEW_WORKSPACES
         ? root.baseViewMode : WindowModel.VIEW_WORKSPACES)
       onGroupToggleRequested: root.setViewMode(root.viewMode === WindowModel.VIEW_GROUPED
@@ -709,7 +827,8 @@ Item {
             focusedWorkspaceId: root.focusedWorkspaceId
             switcherOpen: root.opened
             previewMode: root.previewMode
-            captureLimit: root.maxInitialCaptures
+            captureLimit: root.activeCaptureLimit
+            workspaceNames: root.workspaceNames
             animationMs: root.animationMs
             query: root.query
             activeFilter: root.activeFilter
@@ -725,12 +844,17 @@ Item {
               root.closeSelectedWindow()
             }
             onCardCloseAllRequested: function(index) { root.closeWorkspaceGroup(index) }
+            renamingWorkspaceId: root.renamingWorkspaceId
+            onCardRenameRequested: function(index) { root.beginWorkspaceRename(index) }
+            onCardRenameCommitted: function(workspaceId, name) { root.setWorkspaceName(workspaceId, name) }
+            onCardRenameCancelled: root.cancelWorkspaceRename()
           }
 
           FooterHints {
             Layout.fillWidth: true
             activationMode: root.activationMode
             previewMode: root.previewMode
+            viewMode: root.viewMode
           }
         }
       }

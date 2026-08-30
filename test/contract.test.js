@@ -48,7 +48,25 @@ assert.match(switcher, /function setFilter\(filter\)/, 'plugin exposes the works
 assert.match(switcher, /function setViewMode\(mode\)/, 'plugin exposes the view toggle')
 assert.match(switcher, /function toggleMinimizedVisibility\(\)/, 'plugin exposes the minimized-window toggle')
 assert.match(switcher, /function setWorkspaceOrder\(order\)/, 'plugin exposes the workspace-order toggle')
+assert.match(switcher, /function setWorkspaceName\(workspaceId, name\)/,
+  'workspace names are committed by stable compositor id')
+assert.match(switcher, /workspaceGroupIndexForId\(renamingWorkspaceId\) < 0\)[\s\S]*?cancelWorkspaceRename\(\)/,
+  'model refresh cancels an editor whose workspace disappeared')
+assert.match(workspaceGrid, /renaming: Number\(workspaceCell\.modelData\.id\) === view\.renamingWorkspaceId/,
+  'the inline editor follows its workspace when cards reorder')
+assert.match(workspaceGrid, /cardRenameCommitted\(Number\(workspaceCell\.modelData\.id\), name\)/,
+  'the commit signal carries a workspace id rather than a delegate index')
+assert.doesNotMatch(allQml, /renamingWorkspaceIndex/,
+  'workspace rename state never relies on a reactive model index')
+assert.match(switcher, /if \(String\(query \|\| ""\)\.trim\(\)\)[\s\S]*?refreshFiltered/,
+  'renaming only rebuilds workspace delegates when alias-aware search needs it')
+assert.match(switcher, /shell\.updateEntryInline\(id, entry\)/,
+  'workspace names persist through the host shell configuration API')
+assert.match(switcher, /WindowModel\.groupWindows\(next, visibleAll, workspaceNames\)/,
+  'workspace aliases feed card and grouped-section labels')
 assert.match(switcher, /workspaceOrder: workspaceOrder/, 'status reports the active workspace order')
+assert.match(switcher, /activeCaptureLimit: activeCaptureLimit/,
+  'status exposes progressive capture state for runtime diagnosis')
 assert.match(switcher,
   /WindowModel\.orderByWorkspace\(ordered, workspaceOrder, openWorkspaceMruKeys\)/,
   'section views use the frozen workspace history while the switcher is open')
@@ -76,6 +94,9 @@ assert.match(switcher, /root\.noteWorkspaceUsed\(record\.workspaceId\)/,
 assert.match(keySurface, /WindowModel\.digitWorkspaceId\(/, 'Ctrl+digit maps to workspace numbers')
 assert.match(keySurface, /ctrl && event\.key === Qt\.Key_M/, 'Ctrl+M toggles minimized-window visibility')
 assert.match(keySurface, /ctrl && event\.key === Qt\.Key_O/, 'Ctrl+O toggles workspace ordering')
+assert.match(keySurface, /event\.key === Qt\.Key_F2/, 'F2 starts workspace renaming')
+assert.match(keySurface, /Keys\.enabled: !surface\.editingWorkspaceName/,
+  'the global switcher keymap yields to the inline name editor')
 assert.match(minimizedToggle, /toggle\.showMinimized \? "Shown" : "Hidden"/, 'the minimized toggle names both states')
 assert.match(minimizedToggle, /constrained: !toggle\.showMinimized/,
   'the minimized toggle takes the accent when it hides windows, never when it shows them')
@@ -97,12 +118,22 @@ assert.match(switcher, /!showMinimized && WindowModel\.isMinimizedWindow\(record
   'close-all uses the same minimized visibility rule as filtering')
 assert.match(switcher, /closeWorkspaceWindows\(group\.key === WindowModel\.NO_WORKSPACE_KEY \? null : group\.id\)/,
   'the card close-all routes through the shared unfiltered path')
-assert.match(switcher, /WindowModel\.groupWindows\(next, visibleAll\)/, 'workspace groups retain full-scope counts under search')
+assert.match(switcher, /WindowModel\.groupWindows\(next, visibleAll, workspaceNames\)/,
+  'workspace groups retain full-scope counts under search')
 assert.doesNotMatch(switcher, /filteredWindows\[i\]\.toplevel\.close|closeWorkspaceGroup[\s\S]{0,200}filteredWindows/, 'close-all never iterates the query-filtered list')
 assert.match(card, /\bCloseButton\s*\{/, 'window cards expose a close button')
 assert.match(workspaceCard, /\bCloseButton\s*\{/, 'workspace cards expose a close-all button')
 assert.match(filterPill, /\bCloseButton\s*\{/, 'workspace pills expose a close-all button')
 assert.match(workspaceCard, /requireConfirm: true/, 'card close-all needs a confirming second click')
+assert.equal((workspaceCard.match(/acceptedButtons: Qt\.LeftButton \| Qt\.RightButton/g) || []).length, 2,
+  'right-click starts workspace renaming from both the preview and metadata areas')
+assert.equal((workspaceCard.match(/card\.handlePointerClick\(mouse\.button\)/g) || []).length, 2,
+  'both workspace-card click areas share the same button handling')
+assert.match(workspaceCard, /\bTextInput\s*\{/, 'workspace names are edited inline')
+assert.match(workspaceCard, /card\.renameCommitted\(nameEditor\.text\)/,
+  'Enter commits the inline workspace name')
+assert.match(workspaceCard, /WindowModel\.workspaceAlias\(workspaceNames, groupData\.id\)/,
+  'workspace labels react to aliases without replacing the card model')
 assert.match(filterPill, /requireConfirm: true/, 'pill close-all needs a confirming second click')
 assert.match(card, /Qt\.MiddleButton/, 'middle-click closes a window card')
 
@@ -133,6 +164,10 @@ assert.doesNotMatch(recordsSource,
   /focusHistoryId:|hyprland: hyprland|desktopEntry:|screenNames:|maximized:|fullscreen:/,
   'window records omit unused fields')
 assert.match(workspaceGrid, /\bWorkspaceCard\s*\{/, 'workspace view renders composite workspace cards')
+assert.doesNotMatch(workspaceCard, /Behavior on (?:color|scale)/,
+  'workspace selection handoff is atomic instead of showing two selected cards')
+assert.doesNotMatch(card, /Behavior on (?:color|scale)/,
+  'window selection handoff is atomic instead of showing two selected cards')
 
 assert.match(card, /\bScreencopyView\s*\{/, 'cards use the native screencopy API')
 assert.match(card, /active: card\.switcherOpen && card\.captureEnabled/, 'capture components are inactive while closed')
@@ -151,5 +186,12 @@ assert.match(workspaceCard,
   /live: card\.previewMode === WindowModel\.PREVIEW_LIVE_SELECTED\s+&& card\.selected && miniWindow\.index === card\.liveIndex/,
   'liveSelected streams the first drawn miniature, not a hidden one')
 assert.match(workspaceCard, /WindowModel\.firstShownIndex\(/, 'the live target comes from the tested model')
+assert.match(switcher, /id: captureRamp[\s\S]*?activeCaptureLimit \+ 2/,
+  'initial screencopy sources are attached in small batches')
+assert.match(switcher, /if \(root\.activeCaptureLimit === 0\) root\.beginCaptureRamp\(\)/,
+  'capture attachment waits for the compositor geometry refresh')
+assert.match(switcher,
+  /if \(opened\) \{[\s\S]*?previousPreviewMode[\s\S]*?previousMaxInitialCaptures[\s\S]*?if \(previewMode !== previousPreviewMode[\s\S]*?\|\| maxInitialCaptures !== previousMaxInitialCaptures\) beginCaptureRamp\(\)/,
+  'repeated summons preserve capture progress unless capture settings change')
 
 console.log('ok - window switcher plugin contract')

@@ -14,11 +14,16 @@ GridView {
   required property bool switcherOpen
   required property string previewMode
   required property int captureLimit
+  required property var workspaceNames
   required property int animationMs
+  required property int renamingWorkspaceId
 
   signal cardHovered(int index)
   signal cardActivated(int index)
   signal cardCloseAllRequested(int index)
+  signal cardRenameRequested(int index)
+  signal cardRenameCommitted(int workspaceId, string name)
+  signal cardRenameCancelled()
 
   // Rows hug their cards; the whole block centers vertically when it fits.
   readonly property int rowCount: Math.ceil(Math.max(0, count) / Math.max(1, metrics.columns))
@@ -56,10 +61,17 @@ GridView {
       previewMode: view.previewMode
       firstWindowIndex: workspaceCell.modelData.startIndex
       captureLimit: view.captureLimit
+      workspaceNames: view.workspaceNames
       animationMs: view.animationMs
-      onHovered: view.cardHovered(workspaceCell.index)
+      renaming: Number(workspaceCell.modelData.id) === view.renamingWorkspaceId
+      onHovered: if (view.renamingWorkspaceId <= 0) view.cardHovered(workspaceCell.index)
       onActivateRequested: view.cardActivated(workspaceCell.index)
       onCloseAllRequested: view.cardCloseAllRequested(workspaceCell.index)
+      onRenameRequested: view.cardRenameRequested(workspaceCell.index)
+      onRenameCommitted: function(name) {
+        view.cardRenameCommitted(Number(workspaceCell.modelData.id), name)
+      }
+      onRenameCancelled: view.cardRenameCancelled()
     }
   }
 }
