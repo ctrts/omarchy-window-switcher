@@ -147,6 +147,32 @@ The suite runs model tests, contract tests, manifest validation, and `qmllint`.
 Read [design and privacy](docs/design.md) for the component map and visual test
 scope.
 
+## More Omarchy plugins
+
+Explore [devmobasa's public Omarchy plugin collection](https://github.com/devmobasa#omarchy-plugins):
+
+- **Desktop and windows:** [Minimizer Tray](https://github.com/devmobasa/omarchy-minimizer-tray),
+  [Monitor Layout](https://github.com/devmobasa/omarchy-monitor-layout),
+  [Scratchpad Deck](https://github.com/devmobasa/omarchy-scratchpad-deck),
+  [Wallpaper Hub](https://github.com/devmobasa/omarchy-wallpaper-hub),
+  [Window Overview](https://github.com/devmobasa/omarchy-window-overview), and
+  [Window Switcher](https://github.com/devmobasa/omarchy-window-switcher).
+- **Productivity:** [Calendar Agenda](https://github.com/devmobasa/omarchy-calendar-agenda),
+  [Pomodoro](https://github.com/devmobasa/omarchy-pomodoro), and
+  [Screen Time](https://github.com/devmobasa/omarchy-screen-time).
+- **Automation and control:** [Context Rules](https://github.com/devmobasa/omarchy-context-rules),
+  [Game Mode](https://github.com/devmobasa/omarchy-game-mode), and
+  [Omarchy Nexus](https://github.com/devmobasa/omarchy-nexus).
+- **Developer and presentation:** [Dev Inbox](https://github.com/devmobasa/omarchy-dev-inbox),
+  [Git Hygiene](https://github.com/devmobasa/omarchy-git-hygiene),
+  [Keycast](https://github.com/devmobasa/omarchy-keycast), and
+  [Wayscriber Deck](https://github.com/devmobasa/omarchy-wayscriber-deck).
+- **System and privacy:** [Drive Bay](https://github.com/devmobasa/omarchy-drive-bay),
+  [Permission Center](https://github.com/devmobasa/omarchy-permission-center),
+  [Privacy Dots](https://github.com/devmobasa/omarchy-privacy-dots),
+  [systemd Health](https://github.com/devmobasa/omarchy-systemd-health), and
+  [VPN Manager](https://github.com/devmobasa/omarchy-vpn-manager).
+
 ## License
 
 MIT. This project is a clean-room Omarchy integration based on public APIs and
