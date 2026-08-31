@@ -51,9 +51,11 @@ each opening, it selects the previous workspace.
 
 Press F2 on the selected workspace card, or right-click a card, to edit its
 local name. Enter saves it and Escape cancels. Saving an empty name restores
-the default `Workspace N` label. The plugin persists edits to `workspaceNames`
-in `shell.json`. These aliases are also searchable, but do not rename Hyprland
-workspaces or change another workspace widget.
+the default `Workspace N` label. When custom names exist, use the header's
+two-click **Reset names** action to restore all default labels. The plugin
+persists edits to `workspaceNames` in `shell.json`. These aliases are also
+searchable, but do not rename Hyprland workspaces or change another workspace
+widget.
 
 The window view shows a flat MRU grid. The first Tab press selects the previous
 window.

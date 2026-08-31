@@ -63,6 +63,52 @@ function parsePayload(payload) {
   }
 }
 
+// Repeated summons normally carry only a direction. Keep that hot path as a
+// selection move; any other invocation key may change filtering, grouping, or
+// presentation and therefore still needs the full option/model refresh.
+function hasInvocationOverrides(payload) {
+  var invocation = payload || {}
+  for (var key in invocation) if (key !== "direction") return true
+  return false
+}
+
+function mergeInvocationOverrides(current, payload) {
+  var result = {}
+  var previous = current || {}
+  var incoming = payload || {}
+  for (var key in previous) if (key !== "direction") result[key] = previous[key]
+  if (incoming.filter !== undefined || incoming.scope !== undefined) {
+    delete result.filter
+    delete result.scope
+  }
+  if (incoming.view !== undefined || incoming.groupByWorkspace !== undefined) {
+    delete result.view
+    delete result.groupByWorkspace
+  }
+  for (var nextKey in incoming) if (nextKey !== "direction") result[nextKey] = incoming[nextKey]
+  return result
+}
+
+function optionApplicationKey(options) {
+  var value = options || {}
+  return JSON.stringify({
+    filter: value.filter || null,
+    filterExplicit: value.filterExplicit === true,
+    view: value.view,
+    viewExplicit: value.viewExplicit === true,
+    workspaceOrder: value.workspaceOrder,
+    workspaceOrderExplicit: value.workspaceOrderExplicit === true,
+    workspaceNames: value.workspaceNames || {},
+    stickyFilter: value.stickyFilter === true,
+    previewMode: value.previewMode,
+    activation: value.activation,
+    showMinimized: value.showMinimized === true,
+    showSpecialWorkspaces: value.showSpecialWorkspaces === true,
+    maxInitialCaptures: value.maxInitialCaptures,
+    animationMs: value.animationMs
+  })
+}
+
 function enumValue(value, allowed, fallback) {
   var result = stringValue(value)
   return allowed.indexOf(result) >= 0 ? result : fallback
@@ -371,6 +417,49 @@ function countLabel(filteredCount, totalCount, filter, query, label) {
   return text
 }
 
+function workspaceShortcutKey(workspaceId, label) {
+  var id = Number(workspaceId)
+  if (!isFinite(id) || Math.floor(id) !== id || String(label) !== String(id)) return ""
+  if (id >= 1 && id <= 9) return String(id)
+  return id === 10 ? "0" : ""
+}
+
+// Footer key legends. The footer is the only place that teaches the keymap,
+// so it names the keys the current view actually answers to rather than the
+// whole map: a hint for a control the header is hiding is a hint that lies.
+function footerHints(view, activation, minimizedCount) {
+  var primary = [
+    { keys: ["Tab"], label: "select" },
+    activation === ACTIVATION_RELEASE
+      ? { keys: ["Alt/Meta/Super"], label: "release to switch" }
+      : { keys: ["Enter"], label: "switch" },
+    { keys: ["Esc"], label: "cancel" }
+  ]
+
+  var secondary = []
+  function addWorkspaceFilterHints() {
+    secondary.push({ keys: ["Ctrl", "1…9"], label: "filter" })
+    secondary.push({ keys: ["Ctrl", "0"], label: "workspace 10" })
+  }
+
+  if (view === VIEW_WORKSPACES) {
+    secondary.push({ keys: ["F2"], label: "rename" })
+    addWorkspaceFilterHints()
+    if (Number(minimizedCount) > 0) secondary.push({ keys: ["Ctrl", "M"], label: "minimized" })
+    secondary.push({ keys: ["Ctrl", "O"], label: "order" })
+    secondary.push({ keys: ["Ctrl", "W"], label: "windows" })
+  } else {
+    addWorkspaceFilterHints()
+    secondary.push({ keys: ["Ctrl", "A"], label: "all" })
+    if (Number(minimizedCount) > 0) secondary.push({ keys: ["Ctrl", "M"], label: "minimized" })
+    secondary.push({ keys: ["Ctrl", "G"], label: view === VIEW_GROUPED ? "ungroup" : "group" })
+    if (view === VIEW_GROUPED) secondary.push({ keys: ["Ctrl", "O"], label: "order" })
+    secondary.push({ keys: ["Ctrl", "W"], label: "workspaces" })
+  }
+
+  return { primary: primary, secondary: secondary }
+}
+
 function digitWorkspaceId(digit) {
   var value = Math.floor(Number(digit) || 0)
   return value === 0 ? 10 : value
@@ -659,6 +748,9 @@ if (typeof module !== "undefined") {
     PILL_WORKSPACE: PILL_WORKSPACE,
     PILL_LABEL: PILL_LABEL,
     parsePayload: parsePayload,
+    hasInvocationOverrides: hasInvocationOverrides,
+    mergeInvocationOverrides: mergeInvocationOverrides,
+    optionApplicationKey: optionApplicationKey,
     normalizeWorkspaceNames: normalizeWorkspaceNames,
     workspaceAlias: workspaceAlias,
     normalizeFilter: normalizeFilter,
@@ -676,6 +768,8 @@ if (typeof module !== "undefined") {
     countLabel: countLabel,
     viewCountLabel: viewCountLabel,
     digitWorkspaceId: digitWorkspaceId,
+    workspaceShortcutKey: workspaceShortcutKey,
+    footerHints: footerHints,
     workspaceLayout: workspaceLayout,
     firstShownIndex: firstShownIndex,
     shownOrdinals: shownOrdinals,

@@ -18,6 +18,40 @@ assert.deepEqual([model.PILL_ALL, model.PILL_WORKSPACE, model.PILL_LABEL],
 assert.deepEqual(model.parsePayload('{"scope":"all"}'), { scope: 'all' })
 assert.deepEqual(model.parsePayload('not json'), {})
 assert.deepEqual(model.parsePayload('[]'), {})
+assert.equal(model.hasInvocationOverrides({ direction: 1 }), false,
+  'a repeated direction-only summon can move selection without rebuilding models')
+assert.equal(model.hasInvocationOverrides({}), false,
+  'an empty repeated summon uses the navigation fast path')
+assert.equal(model.hasInvocationOverrides({ direction: -1, view: 'windows' }), true,
+  'a repeated summon with another option still reapplies and refreshes its model')
+assert.deepEqual(
+  model.mergeInvocationOverrides(
+    model.mergeInvocationOverrides({}, { direction: 1, view: 'windows', previewMode: 'none' }),
+    { direction: -1 }),
+  { view: 'windows', previewMode: 'none' },
+  'direction changes do not discard overrides that last for the current opening')
+assert.deepEqual(
+  model.mergeInvocationOverrides({ view: 'windows', filter: 'all' }, {
+    groupByWorkspace: true,
+    scope: 'workspace'
+  }),
+  { groupByWorkspace: true, scope: 'workspace' },
+  'new legacy aliases replace earlier canonical overrides for the same concepts')
+assert.deepEqual(
+  model.mergeInvocationOverrides({ groupByWorkspace: true, scope: 'workspace' }, {
+    view: 'workspaces',
+    filter: 'all'
+  }),
+  { view: 'workspaces', filter: 'all' },
+  'new canonical overrides replace earlier legacy aliases for the same concepts')
+assert.equal(
+  model.optionApplicationKey(model.effectiveOptions({}, { direction: -1 })),
+  model.optionApplicationKey(model.effectiveOptions({}, { direction: 1, query: 'ignored here' })),
+  'navigation and query state do not invalidate otherwise identical applied options')
+assert.notEqual(
+  model.optionApplicationKey(model.effectiveOptions({}, { direction: 1 })),
+  model.optionApplicationKey(model.effectiveOptions({ previewMode: 'none' }, { direction: 1 })),
+  'a stored configuration change invalidates the repeated-summon fast path')
 
 assert.deepEqual(model.normalizeWorkspaceNames({
   1: '  Code   and docs  ',
@@ -28,6 +62,8 @@ assert.deepEqual(model.normalizeWorkspaceNames({
 }), { 1: 'Code and docs' })
 assert.equal(model.workspaceAlias({ 7: 'Harnet' }, 7), 'Harnet')
 assert.equal(model.workspaceAlias({ '-7': 'Special' }, -7), '')
+assert.equal(model.workspaceShortcutKey(10, '10'), '0',
+  'workspace 10 advertises the Ctrl+0 shortcut that selects it')
 
 // Filter normalization, including legacy scope names.
 assert.deepEqual(model.normalizeFilter('all'), { kind: 'all' })
@@ -353,5 +389,38 @@ assert.equal(model.groupIndexFor(groups, 3), 2)
 assert.equal(model.groupIndexFor(groups, 4), 3)
 
 assert.equal(model.workspaceLabel(record({ workspaceName: 'special:music', monitorName: 'DP-2' })), 'music · DP-2')
+
+const explicitHints = model.footerHints(model.VIEW_WINDOWS, model.ACTIVATION_EXPLICIT, 0)
+assert.deepEqual(explicitHints.primary.map(hint => hint.keys.join('+')), ['Tab', 'Enter', 'Esc'],
+  'explicit activation names the key that switches')
+assert.deepEqual(
+  model.footerHints(model.VIEW_WINDOWS, model.ACTIVATION_RELEASE, 0).primary.map(hint => hint.label),
+  ['select', 'release to switch', 'cancel'],
+  'release activation names the modifier instead of Enter')
+assert.deepEqual(model.footerHints(model.VIEW_WINDOWS, model.ACTIVATION_RELEASE, 0).primary[1].keys,
+  ['Alt/Meta/Super'],
+  'release activation names the accepted modifier family rather than implying Alt is required')
+assert.deepEqual(explicitHints.secondary.map(hint => hint.label),
+  ['filter', 'workspace 10', 'all', 'group', 'workspaces'],
+  'the window views omit the minimized hint when nothing is minimized')
+assert.deepEqual(model.footerHints(model.VIEW_WINDOWS, model.ACTIVATION_EXPLICIT, 3)
+  .secondary.map(hint => hint.label),
+  ['filter', 'workspace 10', 'all', 'minimized', 'group', 'workspaces'],
+  'the minimized hint follows the header control that owns it')
+assert.deepEqual(model.footerHints(model.VIEW_WORKSPACES, model.ACTIVATION_EXPLICIT, 3)
+  .secondary.map(hint => hint.label),
+  ['rename', 'filter', 'workspace 10', 'minimized', 'order', 'windows'],
+  'workspace view includes every visible session control')
+assert.ok(model.footerHints(model.VIEW_GROUPED, model.ACTIVATION_EXPLICIT, 0)
+  .secondary.every(hint => hint.label !== 'rename'),
+  'only the workspace view offers renaming')
+assert.deepEqual(model.footerHints(model.VIEW_GROUPED, model.ACTIVATION_EXPLICIT, 0)
+  .secondary.map(hint => hint.label),
+  ['filter', 'workspace 10', 'all', 'ungroup', 'order', 'workspaces'],
+  'grouped view names the action that Ctrl+G performs and includes its visible order control')
+assert.deepEqual(explicitHints.secondary[0].keys, ['Ctrl', '1…9'],
+  'a shortcut is carried as separate caps so the footer can draw one per key')
+assert.deepEqual(explicitHints.secondary.slice(0, 2).map(hint => hint.keys.join('+')),
+  ['Ctrl+1…9', 'Ctrl+0'], 'the footer teaches the workspace 10 shortcut alongside workspaces 1 through 9')
 
 console.log('ok - window switcher model')

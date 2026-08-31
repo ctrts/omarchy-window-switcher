@@ -40,12 +40,34 @@ construct shell commands from window metadata or invocation payloads.
 - `components/SwitcherKeySurface.qml` owns the keyboard controls.
 - `components/WindowCard.qml` creates a capture only for a scheduled window.
 - `components/WorkspaceCard.qml` places window captures at their reported
-  workspace geometry.
+  workspace geometry. Each miniature is a pointer target for its own window.
+- `components/KeyCap.qml` and `components/KeyHint.qml` draw the key legends
+  that the footer and the workspace pills share.
 - The root capture ramp waits for refreshed compositor geometry and then
   attaches capture sources in small batches instead of one blocking frame.
 
 If workspace geometry is not available, the workspace card uses an even tile
 layout. Minimized windows do not appear in a workspace preview.
+
+## Visual hierarchy
+
+The switcher shows many dense previews at the same time. These rules keep the
+previews first and the controls second.
+
+- The close button rests in neutral chrome. It shows the urgent color only
+  under the pointer. A card shows its close button only when it is selected.
+  The pointer selects the card that it touches, so the mouse can reach every
+  close button.
+- Selection uses four signals together: the other cards become dim, and the
+  selected card grows, gets a thicker border, and gets an outer ring. No part
+  of this is animated, because two cards must never look selected at once.
+- An outlined chip is a key that the user can press. A filled chip is a count.
+  The workspace pills and the footer legends use the same two shapes.
+- A captured miniature keeps an application icon whenever it is large enough
+  to carry one legibly. Many terminal windows look the same at preview size,
+  and the capture alone is not sufficient to identify one.
+- The workspace card names the window under the pointer in one band at the
+  bottom of the preview. A miniature can be too small for a title.
 
 ## Privacy
 

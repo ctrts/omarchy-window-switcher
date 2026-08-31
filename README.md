@@ -34,9 +34,12 @@ Shift+Tab to move through the items. Press Enter to switch.
 
 ## Features
 
-- Search by application, title, workspace, or monitor.
+- Search by application, title, workspace, or monitor. The × in the search box
+  clears the query.
 - Filter windows with workspace pills.
 - Show a window grid or composite workspace previews.
+- Point at a window inside a workspace preview to read its title, then click it
+  to switch to that window.
 - Give numbered workspaces local names without renaming them in Hyprland.
 - Order workspace sections by recent use or workspace number.
 - Target the focused monitor in a multi-monitor layout.
@@ -62,6 +65,7 @@ process, poll `hyprctl`, run background commands, or write preview images.
 | Ctrl+H/J/K/L | Move through the grid with Vim-style keys |
 | Type / Backspace | Enter or edit a search query |
 | Enter or click | Activate the selected window |
+| Click a window inside a workspace preview | Activate that window |
 | Escape | Clear the search, show all windows, or close the switcher |
 | Ctrl+1 through Ctrl+9 | Filter by workspace 1 through 9 |
 | Ctrl+0 | Filter by workspace 10 |
@@ -73,12 +77,19 @@ process, poll `hyprctl`, run background commands, or write preview images.
 | Ctrl+G | Group the window grid by workspace |
 | Ctrl+Delete | Request closure of the selected window in a window view |
 | Middle-click or the × button | Request closure of a window |
+| Middle-click a window inside a workspace preview | Request closure of that window |
 | Workspace × button | Request closure of all windows on that workspace after a second click |
+
+The × button shows on the selected card only. The pointer selects the card
+that it touches, so the mouse can reach every × button. A workspace pill shows
+its × button while the pointer is on that pill.
 
 A click outside the switcher closes it and restores the original window.
 Clear a workspace name in the editor to restore its default `Workspace N`
-label. Local names are saved in this plugin's `shell.json` entry; they do not
-change Hyprland or another workspace widget.
+label. When any custom names exist, the workspace header also offers a
+two-click **Reset names** action that restores every default label. Local names
+are saved in this plugin's `shell.json` entry; they do not change Hyprland or
+another workspace widget.
 
 ## Configuration
 

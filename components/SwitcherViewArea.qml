@@ -31,6 +31,8 @@ Item {
   signal cardRenameRequested(int index)
   signal cardRenameCommitted(int workspaceId, string name)
   signal cardRenameCancelled()
+  signal workspaceWindowActivated(int windowIndex)
+  signal workspaceWindowCloseRequested(int windowIndex)
 
   readonly property var flatMetrics: Metrics.compactRows(Metrics.gridMetrics(
     windows.length, width, height,
@@ -124,6 +126,8 @@ Item {
       onCardRenameRequested: function(index) { area.cardRenameRequested(index) }
       onCardRenameCommitted: function(workspaceId, name) { area.cardRenameCommitted(workspaceId, name) }
       onCardRenameCancelled: area.cardRenameCancelled()
+      onCardWindowActivated: function(windowIndex) { area.workspaceWindowActivated(windowIndex) }
+      onCardWindowCloseRequested: function(windowIndex) { area.workspaceWindowCloseRequested(windowIndex) }
     }
   }
 

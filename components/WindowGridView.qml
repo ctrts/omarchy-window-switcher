@@ -49,6 +49,9 @@ GridView {
         && (windowCell.index < view.captureLimit || windowCell.index === view.selectedIndex)
       previewMode: view.previewMode
       animationMs: view.animationMs
+      // The flat grid is the most-recently-used order, so the delegate index
+      // is the rank. The grouped view sorts by workspace and leaves it unset.
+      mruRank: windowCell.index
       onHovered: view.cardHovered(windowCell.index)
       onActivateRequested: view.cardActivated(windowCell.index)
       onCloseRequested: view.cardCloseRequested(windowCell.index)

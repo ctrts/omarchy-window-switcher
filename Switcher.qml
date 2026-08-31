@@ -42,6 +42,11 @@ Item {
   property var workspaceNames: ({})
   property bool workspaceNamesDirty: false
   property int renamingWorkspaceId: 0
+  readonly property int workspaceNameCount: {
+    var count = 0
+    for (var workspaceId in workspaceNames) count++
+    return count
+  }
   property var workspaceMruKeys: []
   property var openWorkspaceMruKeys: []
   property bool stickyFilter: false
@@ -54,6 +59,8 @@ Item {
   property int animationMs: 140
   property bool modifierReleaseArmed: false
   property int openSerial: 0
+  property var openingOverrides: ({})
+  property string appliedSettingsKey: ""
 
   // In workspace view the selection indexes windowGroups and the selected
   // window is that workspace's most recently used one.
@@ -414,6 +421,18 @@ Item {
     Qt.callLater(function() { if (root.opened) keySurface.forceActiveFocus() })
   }
 
+  function resetWorkspaceNames() {
+    if (workspaceNameCount <= 0) return
+    var preferred = selectedKey()
+    renamingWorkspaceId = 0
+    workspaceNames = WindowModel.normalizeWorkspaceNames({})
+    workspaceNamesDirty = true
+    // Aliases participate in search, so clearing them can remove matches.
+    // Otherwise card labels update directly without rebuilding captures.
+    if (String(query || "").trim()) refreshFiltered(preferred)
+    Qt.callLater(function() { if (root.opened) keySurface.forceActiveFocus() })
+  }
+
   function beginCaptureRamp() {
     captureRamp.stop()
     activeCaptureLimit = 0
@@ -462,6 +481,23 @@ Item {
     }
     pendingActivation = selected.toplevel
     beginClose()
+  }
+
+  // A workspace miniature stands for one window rather than for its card, so
+  // the pointer acts on that window instead of on the card's most recent one.
+  function activateWindowAt(index) {
+    var record = index >= 0 && index < filteredWindows.length ? filteredWindows[index] : null
+    if (!record || !record.toplevel) {
+      cancel()
+      return
+    }
+    pendingActivation = record.toplevel
+    beginClose()
+  }
+
+  function closeWindowAt(index) {
+    var record = index >= 0 && index < filteredWindows.length ? filteredWindows[index] : null
+    if (record && record.toplevel) record.toplevel.close()
   }
 
   function closeSelectedWindow() {
@@ -532,12 +568,30 @@ Item {
 
   function open(payloadJson) {
     var payload = WindowModel.parsePayload(payloadJson)
-    var options = WindowModel.effectiveOptions(pluginSettings(), payload)
+    var settings = pluginSettings()
+    var settingsKey = WindowModel.optionApplicationKey(
+      WindowModel.effectiveOptions(settings, {}))
+    var hasOverrides = WindowModel.hasInvocationOverrides(payload)
+    if (!opened || hasOverrides)
+      openingOverrides = WindowModel.mergeInvocationOverrides(
+        opened ? openingOverrides : {}, payload)
+    var invocation = WindowModel.mergeInvocationOverrides(openingOverrides, {})
+    invocation.direction = payload.direction
+    var options = WindowModel.effectiveOptions(settings, invocation)
+
+    if (opened
+        && !hasOverrides
+        && settingsKey === appliedSettingsKey) {
+      if (options.direction !== 0) selectAdjacent(options.direction)
+      focusDelay.restart()
+      return
+    }
 
     if (opened) {
       var previousPreviewMode = previewMode
       var previousMaxInitialCaptures = maxInitialCaptures
       applyOptions(options)
+      appliedSettingsKey = settingsKey
       if (previewMode !== previousPreviewMode
           || maxInitialCaptures !== previousMaxInitialCaptures) beginCaptureRamp()
       if (payload.query !== undefined) updateQuery(options.query)
@@ -550,6 +604,7 @@ Item {
     openSerial++
     closeAnimation.stop()
     applyOptions(options)
+    appliedSettingsKey = settingsKey
     query = options.query
     if (shell && shell.appLibrary && typeof shell.appLibrary.refreshIcons === "function")
       shell.appLibrary.refreshIcons()
@@ -797,7 +852,9 @@ Item {
             minimizedCount: root.minimizedCount
             viewMode: root.viewMode
             workspaceOrder: root.workspaceOrder
+            workspaceNameCount: root.workspaceNameCount
             query: root.query
+            switcherOpen: root.opened
             countText: WindowModel.viewCountLabel(
               root.viewMode,
               root.windowGroups.length,
@@ -807,8 +864,10 @@ Item {
               root.query,
               WindowModel.filterLabel(root.activeFilter, root.allWindows))
             onAllPicked: root.setFilter({ kind: WindowModel.FILTER_ALL })
+            onQueryCleared: root.updateQuery("")
             onMinimizedToggleRequested: root.toggleMinimizedVisibility()
             onWorkspaceOrderRequested: function(order) { root.setWorkspaceOrder(order) }
+            onWorkspaceNamesResetRequested: root.resetWorkspaceNames()
             onWorkspaceToggled: function(workspaceId) { root.toggleWorkspaceFilter(workspaceId) }
             onWorkspaceCloseRequested: function(workspaceId) { root.closeWorkspaceWindows(workspaceId) }
             onWindowsViewRequested: root.setViewMode(root.baseViewMode)
@@ -848,6 +907,8 @@ Item {
             onCardRenameRequested: function(index) { root.beginWorkspaceRename(index) }
             onCardRenameCommitted: function(workspaceId, name) { root.setWorkspaceName(workspaceId, name) }
             onCardRenameCancelled: root.cancelWorkspaceRename()
+            onWorkspaceWindowActivated: function(windowIndex) { root.activateWindowAt(windowIndex) }
+            onWorkspaceWindowCloseRequested: function(windowIndex) { root.closeWindowAt(windowIndex) }
           }
 
           FooterHints {
@@ -855,6 +916,7 @@ Item {
             activationMode: root.activationMode
             previewMode: root.previewMode
             viewMode: root.viewMode
+            minimizedCount: root.minimizedCount
           }
         }
       }

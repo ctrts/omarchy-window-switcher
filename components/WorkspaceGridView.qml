@@ -21,6 +21,10 @@ GridView {
   signal cardHovered(int index)
   signal cardActivated(int index)
   signal cardCloseAllRequested(int index)
+  // Miniature signals carry a flat window index, so the owner activates or
+  // closes exactly the window that was clicked rather than a card.
+  signal cardWindowActivated(int windowIndex)
+  signal cardWindowCloseRequested(int windowIndex)
   signal cardRenameRequested(int index)
   signal cardRenameCommitted(int workspaceId, string name)
   signal cardRenameCancelled()
@@ -72,6 +76,12 @@ GridView {
         view.cardRenameCommitted(Number(workspaceCell.modelData.id), name)
       }
       onRenameCancelled: view.cardRenameCancelled()
+      onWindowActivateRequested: function(windowIndex) {
+        view.cardWindowActivated(workspaceCell.modelData.startIndex + windowIndex)
+      }
+      onWindowCloseRequested: function(windowIndex) {
+        view.cardWindowCloseRequested(workspaceCell.modelData.startIndex + windowIndex)
+      }
     }
   }
 }

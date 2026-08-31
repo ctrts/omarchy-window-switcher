@@ -3,42 +3,75 @@ import QtQuick.Layouts
 import qs.Commons
 import "../model/WindowSwitcherModel.js" as WindowModel
 
-// Bottom hint row: interaction summary, shortcut reference, preview state.
+// Bottom hint row: the keymap drawn as caps rather than a run-on sentence,
+// split into the three keys that always apply and the view's own controls.
+// The secondary group yields the row when the card is too narrow for both,
+// because a clipped legend teaches nothing.
 RowLayout {
   id: footer
 
   required property string activationMode
   required property string previewMode
   required property string viewMode
+  required property int minimizedCount
 
-  spacing: Style.spacing.controlGap
+  readonly property var hints: WindowModel.footerHints(viewMode, activationMode, minimizedCount)
 
-  Text {
+  spacing: Style.spacing.xxl
+
+  Row {
+    id: primaryHints
+
+    Layout.alignment: Qt.AlignVCenter
+    spacing: Style.spacing.xl
+
+    Repeater {
+      model: footer.hints.primary
+
+      delegate: KeyHint {}
+    }
+  }
+
+  Item {
     Layout.fillWidth: true
-    text: footer.activationMode === WindowModel.ACTIVATION_RELEASE
-      ? "Tab/arrows select · release modifier to switch · Escape cancels"
-      : "Tab/arrows select · Enter switches · Escape cancels"
-    color: Util.alpha(Color.menu.text, 0.60)
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
-    elide: Text.ElideRight
+    Layout.preferredHeight: 1
+  }
+
+  Item {
+    // The row inside stays visible so its implicit width keeps reporting what
+    // the group needs; only this wrapper leaves the layout. Measuring a row
+    // that has hidden itself would let the two states chase each other.
+    id: secondarySlot
+
+    Layout.alignment: Qt.AlignVCenter
+    implicitWidth: secondaryHints.implicitWidth
+    implicitHeight: secondaryHints.implicitHeight
+    visible: footer.width >= primaryHints.implicitWidth + secondaryHints.implicitWidth
+      + previewLabel.implicitWidth + Style.spacing.xxl * 3
+
+    Row {
+      id: secondaryHints
+
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.spacing.xl
+
+      Repeater {
+        model: footer.hints.secondary
+
+        delegate: KeyHint {}
+      }
+    }
   }
 
   Text {
-    text: footer.viewMode === WindowModel.VIEW_WORKSPACES
-      ? "F2/right-click rename · Ctrl+1…9 filter · Ctrl+O order · Ctrl+W windows"
-      : "Ctrl+1…9 filter · Ctrl+A all · Ctrl+M minimized · Ctrl+O order · Ctrl+W workspaces"
-    color: Util.alpha(Color.menu.text, 0.60)
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
-  }
+    id: previewLabel
 
-  Text {
+    Layout.alignment: Qt.AlignVCenter
     text: footer.previewMode === WindowModel.PREVIEW_NONE
       ? "Previews off"
       : (footer.previewMode === WindowModel.PREVIEW_LIVE_SELECTED
         ? "Selected preview live" : "Still previews")
-    color: Util.alpha(Color.menu.text, 0.60)
+    color: Util.alpha(Color.menu.text, 0.45)
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
   }
