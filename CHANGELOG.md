@@ -55,6 +55,13 @@ backed by the test suite and static analysis only.
   arrive as Qt sequences, which that check rejects. Every rect was null, so
   every card used the even-tile fallback — and a layout change could never
   show on its card.
+- **The selected card keeps all four borders.** It is drawn 4% larger with an
+  outer ring, but cards were sized to the full view height, which clips. A lone
+  tall workspace card lost its top and bottom borders; fitted grids now size
+  against the height left once that growth is set aside.
+- **Workspace cards take the monitor's shape.** Cards were sized for 16:9, so
+  on a 16:10 screen the workspace canvas sat between empty side bands. Cards
+  now use the aspect ratio of the monitor their windows are on.
 
 ### Performance
 

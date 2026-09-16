@@ -88,3 +88,18 @@ assert.ok(scrolled.cardWidth >= 160,
   `the scrolling fallback holds the readable floor, got ${scrolled.cardWidth}`)
 
 console.log('ok - metrics')
+
+// A selected card grows by SELECTED_SCALE plus its ring; sized against the
+// fit height, a lone card still fits the real viewport once it is selected.
+{
+  const viewport = 700
+  const ring = 4
+  const fit = metricsModel.selectionFitHeight(viewport, ring)
+  const lone = metricsModel.gridMetrics(1, 1800, fit, 12, 240, 16 / 9, 68)
+  assert.ok(lone.cardHeight * metricsModel.SELECTED_SCALE + ring * 2 <= viewport,
+    'the selected card keeps its borders inside the view')
+}
+
+assert.equal(metricsModel.monitorAspect([{}, { monitorRect: { width: 1920, height: 1200 } }]), 1.6,
+  'cards take the shape of the monitor their windows are on')
+assert.equal(metricsModel.monitorAspect([]), 16 / 9, 'no placed window falls back to 16:9')

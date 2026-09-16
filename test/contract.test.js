@@ -222,7 +222,7 @@ assert.doesNotMatch(card, /Behavior on (?:color|scale)/,
   'window selection handoff is atomic instead of showing two selected cards')
 assert.match(cardFrame, /required property bool selected/,
   'the shared card frame owns selection state')
-assert.match(cardFrame, /opacity: selected \? 1 : 0\.7[\s\S]*?scale: selected \? 1\.04 : 1/,
+assert.match(cardFrame, /opacity: selected \? 1 : 0\.7[\s\S]*?scale: selected \? Metrics\.SELECTED_SCALE : 1/,
   'the shared frame owns the selected-card visual hierarchy')
 assert.match(card, /^CardFrame \{/m, 'window cards use the shared selection frame')
 assert.match(workspaceCard, /^CardFrame \{/m, 'workspace cards use the shared selection frame')

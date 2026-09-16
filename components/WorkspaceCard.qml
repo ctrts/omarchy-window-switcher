@@ -6,6 +6,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import "../model/Metrics.js" as Metrics
 import "../model/WindowSwitcherModel.js" as WindowModel
 
 CardFrame {
@@ -46,13 +47,7 @@ CardFrame {
   // must not swallow the liveSelected stream.
   readonly property int liveIndex: WindowModel.firstShownIndex(layout)
   readonly property var captureOrdinals: WindowModel.shownOrdinals(layout)
-  readonly property real monitorAspect: {
-    for (var i = 0; i < windows.length; i++) {
-      var rect = windows[i] && windows[i].monitorRect ? windows[i].monitorRect : null
-      if (rect && rect.width > 0 && rect.height > 0) return rect.width / rect.height
-    }
-    return 16 / 9
-  }
+  readonly property real monitorAspect: Metrics.monitorAspect(windows)
   readonly property var frontWindow: windows.length > 0 ? windows[0] : null
   readonly property var hoveredRecord: hoveredWindow >= 0 && hoveredWindow < windows.length
     ? windows[hoveredWindow] : null

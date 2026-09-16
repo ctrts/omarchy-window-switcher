@@ -115,8 +115,36 @@ function compactRows(metrics, gap) {
   return result
 }
 
+// Aspect ratio of the monitor the first placed window sits on. Workspace
+// cards draw windows on a canvas of this shape, so sizing the cards to it
+// instead of a fixed 16:9 keeps the canvas from being letterboxed.
+function monitorAspect(windows, fallback) {
+  var list = windows || []
+  for (var i = 0; i < list.length; i++) {
+    var rect = list[i] && list[i].monitorRect ? list[i].monitorRect : null
+    if (rect && rect.width > 0 && rect.height > 0) return rect.width / rect.height
+  }
+  return Number(fallback) > 0 ? Number(fallback) : 16 / 9
+}
+
+// The selected card is drawn larger than its slot (CardFrame scales it and
+// adds an outer ring), and the views clip at their edges. Fitting cards into
+// the full height let a lone tall card grow past the viewport, cutting off
+// its top and bottom borders, so fitted grids size against the height that
+// is left once that growth is set aside.
+var SELECTED_SCALE = 1.04
+
+function selectionFitHeight(availableHeight, ring) {
+  var height = Math.max(1, Number(availableHeight) || 1)
+  var outline = Math.max(0, Number(ring) || 0)
+  return Math.max(1, Math.floor((height - outline * 2) / SELECTED_SCALE))
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
+    SELECTED_SCALE: SELECTED_SCALE,
+    selectionFitHeight: selectionFitHeight,
+    monitorAspect: monitorAspect,
     gridMetrics: gridMetrics,
     flowMetrics: flowMetrics,
     compactRows: compactRows

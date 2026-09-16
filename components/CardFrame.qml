@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import "../model/Metrics.js" as Metrics
 
 // Shared selection shell for every window-bearing card. Keeping opacity,
 // scale, stacking, ring, and border here makes the two card views hand off
@@ -13,7 +14,7 @@ Item {
   readonly property int contentInset: surface.border.width
 
   opacity: selected ? 1 : 0.7
-  scale: selected ? 1.04 : 1
+  scale: selected ? Metrics.SELECTED_SCALE : 1
   z: selected ? 2 : 1
 
   Rectangle {

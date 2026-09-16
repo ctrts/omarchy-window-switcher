@@ -38,14 +38,16 @@ Item {
   signal workspaceWindowActivated(int windowIndex)
   signal workspaceWindowCloseRequested(int windowIndex)
 
+  // Room for the selected card's scale and ring, which the views would clip.
+  readonly property real fitHeight: Metrics.selectionFitHeight(height, Style.space(3) + Style.spacing.hairline)
   readonly property var flatMetrics: Metrics.compactRows(Metrics.gridMetrics(
-    windows.length, width, height,
+    windows.length, width, fitHeight,
     Style.spacing.xxl, Style.space(160), 1.6, Style.space(68)), Style.spacing.xxl)
   readonly property var groupMetrics: Metrics.flowMetrics(
     width, Style.spacing.xxl, Style.space(160), 1.6, Style.space(68))
   readonly property var workspaceMetrics: Metrics.compactRows(Metrics.gridMetrics(
-    groups.length, width, height,
-    Style.spacing.xxl, Style.space(240), 16 / 9, Style.space(68)), Style.spacing.xxl)
+    groups.length, width, fitHeight,
+    Style.spacing.xxl, Style.space(240), Metrics.monitorAspect(windows), Style.space(68)), Style.spacing.xxl)
 
   readonly property int flatColumns: flatMetrics.columns
   readonly property int groupColumns: groupMetrics.columns
