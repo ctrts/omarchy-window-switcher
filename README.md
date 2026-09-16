@@ -160,8 +160,8 @@ workspace windows, plus preview failure and mixed-scale multi-monitor layouts.
 ## Credits
 
 Original design and implementation by
-[devmobasa](https://github.com/devmobasa). `preview.webp` is from the upstream
-project. Their [Omarchy plugin collection](https://github.com/devmobasa#omarchy-plugins)
+[devmobasa](https://github.com/devmobasa). Their
+[Omarchy plugin collection](https://github.com/devmobasa#omarchy-plugins)
 is worth reading in full — it includes
 [Window Overview](https://github.com/devmobasa/omarchy-window-overview),
 [Scratchpad Deck](https://github.com/devmobasa/omarchy-scratchpad-deck),
