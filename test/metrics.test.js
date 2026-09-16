@@ -59,4 +59,32 @@ assert.ok(flow.cardWidth >= 160, 'grouped cards keep readable widths')
 assert.ok(flow.cellHeight > flow.cardHeight)
 assert.equal(metricsModel.flowMetrics(100, 12, 160, 1.6, 68).columns, 1, 'narrow widths still produce one column')
 
+// Regression: N columns carry N-1 gaps, and that is exactly what the column
+// count solves for. Charging a full gap to every cell instead spent one gap
+// too many and took 1200px at a 160px minimum down to a 159px card — under
+// the floor the column count had just promised.
+const gapFit = metricsModel.flowMetrics(1200, 12, 160, 1.6, 68)
+assert.equal(gapFit.columns, 7, 'seven 160px columns and six gaps fit in 1200px')
+assert.ok(gapFit.cardWidth >= 160,
+  `seven columns must hold the readable floor, got ${gapFit.cardWidth}`)
+
+for (const width of [400, 700, 1000, 1200, 1400, 1920, 2560, 3440]) {
+  const metrics = metricsModel.flowMetrics(width, 12, 160, 1.6, 68)
+  const spanned = metrics.cardWidth * metrics.columns + 12 * (metrics.columns - 1)
+  assert.ok(spanned <= width,
+    `at ${width}px the cards and their gaps stay inside the viewport (${spanned})`)
+  // One column is the degenerate case: a viewport narrower than the minimum
+  // has nothing to give, so the floor only binds once the grid really splits.
+  if (metrics.columns > 1) {
+    assert.ok(metrics.cardWidth >= 160,
+      `at ${width}px a multi-column grid stays readable, got ${metrics.cardWidth}`)
+  }
+}
+
+// The same accounting in the scrolling fallback, which exists precisely to
+// hold the readable minimum and previously recomputed the identical 159.
+const scrolled = metricsModel.gridMetrics(60, 1200, 600, 12, 160, 1.6, 68)
+assert.ok(scrolled.cardWidth >= 160,
+  `the scrolling fallback holds the readable floor, got ${scrolled.cardWidth}`)
+
 console.log('ok - metrics')

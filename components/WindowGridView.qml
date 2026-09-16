@@ -1,3 +1,7 @@
+// Delegates reach outward for `view`, which is only defined behavior when
+// component instances are bound to their creation context.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import qs.Commons
 import "../model/WindowSwitcherModel.js" as WindowModel

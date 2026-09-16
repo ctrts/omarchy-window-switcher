@@ -193,6 +193,46 @@ assert.deepEqual(model.filterWindows([
 assert.equal(model.isMinimizedWindow(record({ workspaceName: 'special:minimized' })), true)
 assert.equal(model.isMinimizedWindow(record({ workspaceName: 'special:music' })), false)
 
+// Cached search haystacks. WindowRecords precomputes the record-intrinsic part
+// of the search text; the filter appends the workspace alias at query time,
+// because a rename changes the alias while the record lives.
+const cached = record({ key: 'cached', title: 'Ledger', appName: 'Numbers', workspaceId: 3, workspaceName: '3' })
+cached.searchBase = 'numbers org.example.numbers ledger 3 dp-1'
+assert.deepEqual(
+  model.filterWindows([cached], 'ledger', ALL, context, true, true).map(item => item.key),
+  ['cached'], 'a prebuilt haystack is used for matching')
+
+// Proves the cache is live rather than dead code: matching has to follow
+// searchBase, not the fields it happened to be built from.
+const diverged = record({ key: 'diverged', title: 'Invisible' })
+diverged.searchBase = 'sentinelword'
+assert.deepEqual(
+  model.filterWindows([diverged], 'sentinelword', ALL, context, true, true).map(item => item.key),
+  ['diverged'], 'the cached haystack is what the filter reads')
+assert.deepEqual(model.filterWindows([diverged], 'invisible', ALL, context, true, true), [],
+  'fields absent from the cached haystack do not match')
+
+// The alias is the one searchable field a user edits in place, so it must keep
+// working on records that already carry a cached haystack.
+assert.deepEqual(
+  model.filterWindows([cached], 'research', ALL, context, true, true, { 3: 'Research' }).map(item => item.key),
+  ['cached'], 'aliases stay searchable on records with a cached haystack')
+assert.deepEqual(model.filterWindows([cached], 'research', ALL, context, true, true), [],
+  'without that alias the same query matches nothing')
+
+// Records without the cache (older snapshots, and these helpers) still match.
+assert.equal(model.queryMatches(record({ title: 'Fallback' }), 'fallback'), true,
+  'records without a cached haystack fall back to joining their fields')
+
+// Terms are split once per pass now. Empty terms from stray whitespace must not
+// survive as an empty substring, which would match everything.
+assert.equal(model.queryMatches(record({ title: 'Notes', appName: 'Editor' }), '  notes   editor  '), true,
+  'multi-term queries ignore surrounding and repeated whitespace')
+assert.equal(model.queryMatches(record({ title: 'Notes' }), 'notes missing'), false,
+  'every term has to match')
+assert.equal(model.queryMatches(record({ title: 'Notes' }), '   '), true,
+  'a whitespace-only query filters nothing')
+
 // The visibility toggle only appears when it has something to reveal, and it
 // counts against every window rather than the filtered set so that it cannot
 // vanish mid-search.

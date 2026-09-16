@@ -33,7 +33,7 @@ const allQml = [switcher].concat(
 ).join('\n')
 
 assert.equal(manifest.schemaVersion, 1)
-assert.equal(manifest.id, 'community.window-switcher')
+assert.equal(manifest.id, 'ctr.window-switcher')
 assert.deepEqual(manifest.kinds, ['overlay'])
 assert.equal(manifest.keepLoaded, true)
 assert.equal(manifest.entryPoints.overlay, 'Switcher.qml')
@@ -165,7 +165,35 @@ assert.match(snapshotSource, /sameRect\(left\.monitorRect, right\.monitorRect\)/
   'refreshed monitor geometry invalidates the snapshot')
 assert.match(snapshotSource, /var RECORD_FIELDS = \[/,
   'visible metadata and state use one snapshot field set')
+
+// The cached search haystack contains the title. Listing it as a tracked
+// snapshot field would make every title change invalidate the snapshot and
+// silently undo the delegate preservation this module exists for.
+assert.match(recordsSource, /record\.searchBase = \[/,
+  'records carry a prebuilt search haystack rather than rebuilding one per keystroke')
+assert.doesNotMatch(snapshotSource, /searchBase/,
+  'the cached haystack is not a tracked snapshot field; it contains the title')
+assert.match(recordsSource, /appMemo\[cacheKey\] = info/,
+  'desktop-entry matching is memoized instead of rescanned for every window')
+assert.match(recordsSource, /objectKeyRows = next[\s\S]{0,240}?appMemo = \(\{\}\)/,
+  'the memo is dropped at the top of each rebuild, so installed apps are picked up')
 assert.doesNotMatch(compositorSignals, /"windowtitle"/, 'title-only events do not trigger discarded full-model rebuilds')
+
+// The manifest keeps this plugin loaded for the whole shell session, so an
+// ungated compositor signal burns CPU for hours between summons. Exactly two
+// sources stay live while hidden — the window set and the focused window —
+// because together they keep MRU correct for the next summon. Everything else
+// only describes how the overlay would look, and waits until it is on screen.
+assert.match(compositorSignals,
+  /target: ToplevelManager\.toplevels[\s\S]{0,240}?function onValuesChanged\(\) \{ compositor\.refreshRequested\(\) \}/,
+  'the window set stays live while closed so MRU is right at the next summon')
+assert.equal(
+  (compositorSignals.match(/if \(compositor\.switcherOpen\) compositor\.refreshRequested\(\)/g) || []).length, 3,
+  'title churn, app-library changes and workspace focus all wait for a visible overlay')
+assert.match(compositorSignals, /if \(!compositor\.switcherOpen \|\| !event\) return/,
+  'raw compositor events never rebuild the model behind a hidden overlay')
+assert.match(compositorSignals, /compositor\.workspaceFocusChanged\(workspace \? workspace\.id : null\)\s*\n\s*if \(compositor\.switcherOpen\)/,
+  'workspace history is still recorded while hidden; only the rebuild waits')
 assert.match(compositorSignals, /readonly property var geometryEventNames:/,
   'geometry event names have one source of truth')
 assert.match(compositorSignals, /refreshEventNames: geometryEventNames\.concat/,

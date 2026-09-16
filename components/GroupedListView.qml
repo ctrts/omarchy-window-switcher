@@ -1,3 +1,7 @@
+// Nested Repeater delegates reach outward for `view` and `groupSection`, which
+// is only defined behavior when instances are bound to their creation context.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import qs.Commons
 import "../model/WindowSwitcherModel.js" as WindowModel

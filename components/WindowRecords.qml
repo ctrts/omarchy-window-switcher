@@ -34,6 +34,27 @@ QtObject {
     return source || Quickshell.iconPath(fallbackIconName, true)
   }
 
+  // Desktop-entry matching normalizes every installed entry with two regex
+  // passes, so it costs windows x installed-applications per rebuild. Windows
+  // of the same application share one answer, and a session runs far fewer
+  // applications than it has windows open. Reset per rebuild by syncObjectKeys
+  // so an installed or removed application is picked up at the next summon.
+  property var appMemo: ({})
+
+  function appInfoFor(appId, entries) {
+    var cacheKey = String(appId || "")
+    var cached = appMemo[cacheKey]
+    if (cached) return cached
+    var entry = EntryMatching.findDesktopEntry(appId, entries)
+    var info = {
+      entry: entry,
+      appName: entry ? String(entry.name || entry.id || appId) : String(appId),
+      iconSource: iconSource(entry, appId)
+    }
+    appMemo[cacheKey] = info
+    return info
+  }
+
   function hyprlandToplevelFor(toplevel) {
     var values = Hyprland.toplevels ? Hyprland.toplevels.values : []
     for (var i = 0; i < values.length; i++) {
@@ -57,6 +78,9 @@ QtObject {
       next.push({ toplevel: toplevel, key: existingKey })
     }
     objectKeyRows = next
+    // This runs once at the top of every rebuild, before any recordFor call,
+    // which makes it the right place to drop the per-rebuild lookup cache.
+    appMemo = ({})
   }
 
   function fallbackKeyFor(toplevel) {
@@ -93,7 +117,7 @@ QtObject {
     var at = Array.isArray(ipc.at) ? ipc.at : null
     var ipcSize = Array.isArray(ipc.size) ? ipc.size : null
     var appId = String((toplevel && toplevel.appId) || ipc.class || ipc.initialClass || "")
-    var entry = EntryMatching.findDesktopEntry(appId, entries)
+    var appInfo = appInfoFor(appId, entries)
     var workspace = hyprland ? hyprland.workspace : null
     var monitor = hyprland ? hyprland.monitor : null
     var address = String(hyprland && hyprland.address ? hyprland.address : "")
@@ -110,8 +134,8 @@ QtObject {
       toplevel: toplevel,
       address: address,
       appId: appId,
-      appName: entry ? String(entry.name || entry.id || appId) : appId,
-      iconSource: iconSource(entry, appId),
+      appName: appInfo.appName,
+      iconSource: appInfo.iconSource,
       title: title,
       workspaceId: workspaceId,
       workspaceName: workspaceName,
@@ -131,6 +155,18 @@ QtObject {
     }
     record.contextLabel = WindowModel.workspaceLabel(record)
     record.workspaceChip = WindowModel.workspaceChipLabel(record)
+    // Filtering rebuilt this lowercase haystack for every record on every
+    // keystroke, across two or three passes. Every part of it below is fixed
+    // for the life of the record, so it is joined once here. The workspace
+    // alias is deliberately left out: a rename changes it while the record
+    // lives, so the filter appends it at query time.
+    record.searchBase = [
+      record.appName,
+      record.appId,
+      record.title,
+      record.workspaceName,
+      record.monitorName
+    ].join(" ").toLowerCase()
     return record
   }
 

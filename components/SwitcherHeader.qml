@@ -1,3 +1,8 @@
+// The pill Repeater's delegate reaches outward for `header`, which is only
+// defined behavior when instances are bound to their creation context.
+// FilterPill already declares `modelData` required, as Bound demands.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import qs.Commons

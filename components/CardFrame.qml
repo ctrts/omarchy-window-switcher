@@ -33,9 +33,25 @@ Item {
     anchors.fill: parent
     color: frame.selected ? Color.menu.selectedBackground : Color.menu.background
     radius: Style.cornerRadius
-    border.width: frame.selected ? Math.max(3, Style.spacing.hairline * 3) : Style.spacing.hairline
-    border.color: frame.selected ? Color.accent : Color.menu.border
+    border.width: Style.spacing.hairline
+    border.color: Color.menu.border
     clip: true
+  }
+
+  // The selected border is painted over the surface instead of widening it.
+  // `contentInset` follows surface.border.width and a card anchors its preview
+  // to that inset, so thickening the real border resized the preview — which
+  // changed ScreencopyView.constraintSize and forced a capture buffer to be
+  // reallocated on both the newly and the previously selected card, on every
+  // single Tab press. Width here is constant; only paint changes.
+  Rectangle {
+    anchors.fill: surface
+    visible: frame.selected
+    radius: surface.radius
+    color: "transparent"
+    border.width: Math.max(3, Style.spacing.hairline * 3)
+    border.color: Color.accent
+    z: 50
   }
 
   Loader {
@@ -45,6 +61,10 @@ Item {
     anchors.right: parent.right
     anchors.margins: Style.spacing.md
     sourceComponent: frame.selectedControl
+    // Gated, not merely hidden: an always-active Loader builds a CloseButton
+    // (Rectangle + Timer + MouseArea + Text) behind every card in the grid in
+    // order to show exactly one of them.
+    active: frame.selected
     visible: frame.selected
     z: 100
   }

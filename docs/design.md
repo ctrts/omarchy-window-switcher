@@ -49,6 +49,35 @@ construct shell commands from window metadata or invocation payloads.
 If workspace geometry is not available, the workspace card uses an even tile
 layout. Minimized windows do not appear in a workspace preview.
 
+## Invariants worth keeping
+
+These are load-bearing and cheap to break by accident.
+
+**Compositor signals are gated on the overlay being visible.** `keepLoaded`
+means this plugin outlives every summon, so an ungated signal costs CPU for
+the whole session. Only the window set and the focused window stay live while
+hidden — together they keep MRU order correct for the next summon. Anything
+that merely describes how the overlay would *look* waits until it is shown.
+
+**`searchBase` must stay out of `RECORD_FIELDS`.** Records carry a prebuilt
+lowercase search haystack so the filter does not rebuild one per record per
+keystroke. It contains the title, so listing it as a tracked snapshot field
+would make every title change invalidate the snapshot — silently undoing the
+capture-delegate preservation `WindowSnapshot` exists for. For the same
+reason the workspace alias is *not* baked into it: an alias is edited live,
+so it is appended at query time instead.
+
+**The selected border is an overlay, not a wider border.** `contentInset`
+follows `surface.border.width`, and a card anchors its preview to that inset.
+Widening the real border on selection therefore resizes the preview, changes
+`ScreencopyView.constraintSize`, and reallocates a capture buffer on both the
+newly and previously selected card at every Tab press.
+
+**Anything that rebuilds the delegate set must restart the capture ramp.**
+Switching views destroys every delegate and builds the other view's set from
+nothing. Without restarting the ramp they all attach screencopy sources in a
+single frame, which is the allocation stall the ramp exists to prevent.
+
 ## Visual hierarchy
 
 The switcher shows many dense previews at the same time. These rules keep the

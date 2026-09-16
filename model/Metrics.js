@@ -2,6 +2,13 @@
 // scrolling section views. Standalone on purpose — this file is loaded both
 // by QML and by the Node test harness, so it must not depend on any other
 // model file.
+//
+// Gap accounting: N columns carry N-1 gaps between them, which is what the
+// column count solves for. `cellWidth` stays the cell pitch (width / columns)
+// because the views lay delegates out on it, but a card's own width has to
+// subtract the same N-1 gaps spread across N cells. Taking a whole gap off
+// every cell instead charges one gap too many and pushes cards under the
+// readable minimum the column count just guaranteed.
 
 function gridMetrics(count, availableWidth, availableHeight, gap, minimumWidth, previewAspect, chromeHeight) {
   var total = Math.max(0, Math.floor(Number(count) || 0))
@@ -31,7 +38,7 @@ function gridMetrics(count, availableWidth, availableHeight, gap, minimumWidth, 
     var rows = Math.ceil(total / columns)
     var cellWidth = width / columns
     var cellHeight = height / rows
-    var availableCardWidth = Math.max(1, cellWidth - spacing)
+    var availableCardWidth = Math.max(1, (width - spacing * (columns - 1)) / columns)
     var availableCardHeight = Math.max(1, cellHeight - spacing)
     var previewWidth = Math.min(availableCardWidth, Math.max(1, (availableCardHeight - chrome) * aspect))
     var previewHeight = previewWidth / aspect
@@ -62,7 +69,7 @@ function gridMetrics(count, availableWidth, availableHeight, gap, minimumWidth, 
   var scrollingColumns = maximumColumns
   var scrollingRows = Math.ceil(total / scrollingColumns)
   var scrollingCellWidth = width / scrollingColumns
-  var scrollingWidth = Math.max(1, scrollingCellWidth - spacing)
+  var scrollingWidth = Math.max(1, (width - spacing * (scrollingColumns - 1)) / scrollingColumns)
   var scrollingHeight = scrollingWidth / aspect + chrome
   return {
     columns: scrollingColumns,
@@ -86,7 +93,7 @@ function flowMetrics(availableWidth, gap, minimumWidth, previewAspect, chromeHei
 
   var columns = Math.max(1, Math.floor((width + spacing) / (minimum + spacing)))
   var cellWidth = width / columns
-  var cardWidth = Math.max(1, cellWidth - spacing)
+  var cardWidth = Math.max(1, (width - spacing * (columns - 1)) / columns)
   var cardHeight = cardWidth / aspect + chrome
   return {
     columns: columns,

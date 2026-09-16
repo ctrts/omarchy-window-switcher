@@ -76,7 +76,7 @@ Item {
   function pluginSettings() {
     if (!shell || !shell.shellConfig || !Array.isArray(shell.shellConfig.plugins)) return {}
     var plugins = shell.shellConfig.plugins
-    var id = String(manifest && manifest.id ? manifest.id : "community.window-switcher")
+    var id = String(manifest && manifest.id ? manifest.id : "ctr.window-switcher")
     for (var i = 0; i < plugins.length; i++) {
       if (plugins[i] && String(plugins[i].id || "") === id) return plugins[i]
     }
@@ -331,6 +331,11 @@ Item {
     if (mode !== WindowModel.VIEW_WORKSPACES) baseViewMode = mode
     sessionView = mode
     refreshFiltered(preferred)
+    // Swapping views destroys every delegate and builds the other view's set
+    // from nothing. The ramp has usually finished by then, so without this the
+    // whole new set attaches its screencopy sources in a single frame — the
+    // exact allocation stall the ramp exists to spread out.
+    beginCaptureRamp()
   }
 
   function updateQuery(nextQuery) {
@@ -444,7 +449,7 @@ Item {
     if (!workspaceNamesDirty || !shell || typeof shell.updateEntryInline !== "function") return
     workspaceNamesDirty = false
     var current = pluginSettings()
-    var id = String(manifest && manifest.id ? manifest.id : "community.window-switcher")
+    var id = String(manifest && manifest.id ? manifest.id : "ctr.window-switcher")
     var entry = { id: id }
     for (var key in current) if (key !== "id" && key !== "workspaceNames") entry[key] = current[key]
     var hasNames = false

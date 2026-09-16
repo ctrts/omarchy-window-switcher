@@ -225,23 +225,42 @@ function effectiveOptions(settings, payload) {
 
 function recordSearchText(record, workspaceNames) {
   if (!record) return ""
+  var alias = workspaceAlias(workspaceNames, record.workspaceId)
+  // Records built by WindowRecords carry a prebuilt lowercase haystack of the
+  // parts that cannot change without the record being rebuilt. The alias is
+  // the one searchable field a user edits in place, so it is joined on here.
+  if (typeof record.searchBase === "string")
+    return alias ? record.searchBase + " " + alias.toLowerCase() : record.searchBase
   return [
     record.appName,
     record.appId,
     record.title,
-    workspaceAlias(workspaceNames, record.workspaceId),
+    alias,
     record.workspaceName,
     record.monitorName
   ].join(" ").toLowerCase()
 }
 
-function queryMatches(record, query, workspaceNames) {
-  var terms = stringValue(query).toLowerCase().trim().split(/\s+/)
+// Split once per pass rather than once per record: filterWindows runs two or
+// three passes per keystroke, over every window each time.
+function queryTerms(query) {
+  var parts = stringValue(query).toLowerCase().trim().split(/\s+/)
+  var terms = []
+  for (var i = 0; i < parts.length; i++) if (parts[i]) terms.push(parts[i])
+  return terms
+}
+
+function matchesTerms(record, terms, workspaceNames) {
+  if (!terms || terms.length === 0) return true
   var haystack = recordSearchText(record, workspaceNames)
   for (var i = 0; i < terms.length; i++) {
-    if (terms[i] && haystack.indexOf(terms[i]) < 0) return false
+    if (haystack.indexOf(terms[i]) < 0) return false
   }
   return true
+}
+
+function queryMatches(record, query, workspaceNames) {
+  return matchesTerms(record, queryTerms(query), workspaceNames)
 }
 
 function isSpecialWorkspace(record) {
@@ -290,13 +309,14 @@ function filterMatches(record, filter, context) {
 function filterWindows(records, query, filter, context, showMinimized, showSpecialWorkspaces, workspaceNames) {
   var values = records || []
   var result = []
+  var terms = queryTerms(query)
   for (var i = 0; i < values.length; i++) {
     var record = values[i]
     if (!record) continue
     if (!showMinimized && isMinimizedWindow(record)) continue
     if (!showSpecialWorkspaces && isSpecialWorkspace(record)) continue
     if (!filterMatches(record, filter, context)) continue
-    if (!queryMatches(record, query, workspaceNames)) continue
+    if (!matchesTerms(record, terms, workspaceNames)) continue
     result.push(record)
   }
   return result

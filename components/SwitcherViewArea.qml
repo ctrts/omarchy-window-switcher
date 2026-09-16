@@ -1,3 +1,7 @@
+// Each view loader's inline component reaches outward for `area`, which is
+// only defined behavior when instances are bound to their creation context.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import qs.Commons
 import "../model/Metrics.js" as Metrics

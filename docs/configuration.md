@@ -3,11 +3,15 @@
 Add configuration keys to the plugin entry in the `plugins` array of
 `~/.config/omarchy/shell.json`.
 
+The plugin id in this fork is `ctr.window-switcher`. If you are migrating from
+upstream, rename the `community.window-switcher` entry — the id is the only
+thing that changed, so every key below carries over untouched.
+
 This example shows all default values:
 
 ```json
 {
-  "id": "community.window-switcher",
+  "id": "ctr.window-switcher",
   "defaultFilter": "all",
   "view": "workspaces",
   "workspaceOrder": "recent",
@@ -122,13 +126,13 @@ Use `filter`, not `defaultFilter`, in a payload.
 Open with `direction: 1`:
 
 ```bash
-omarchy shell shell summon community.window-switcher '{"direction":1}'
+omarchy shell shell summon ctr.window-switcher '{"direction":1}'
 ```
 
 Open with the focused-workspace filter:
 
 ```bash
-omarchy shell shell summon community.window-switcher '{"direction":1,"filter":"workspace"}'
+omarchy shell shell summon ctr.window-switcher '{"direction":1,"filter":"workspace"}'
 ```
 
 The payload accepts each configuration key except `defaultFilter` and
@@ -158,7 +162,7 @@ forward, `-1` moves backward, and `0` keeps the current selection.
 Use this payload to request activation on release of Alt or Meta:
 
 ```bash
-omarchy shell shell summon community.window-switcher '{"direction":1,"activation":"release"}'
+omarchy shell shell summon ctr.window-switcher '{"direction":1,"activation":"release"}'
 ```
 
 The new layer surface can miss the original modifier release. This behavior

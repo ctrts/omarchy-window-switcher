@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "community.window-switcher",
+  "id": "ctr.window-switcher",
   "name": "Window Switcher",
   "version": "1.0.0",
-  "author": "Omarchy Window Switcher contributors",
+  "author": "ctr",
   "description": "Keyboard-first MRU window switching with search and Wayland previews",
   "license": "MIT",
   "kinds": [

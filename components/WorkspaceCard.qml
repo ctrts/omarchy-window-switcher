@@ -1,3 +1,7 @@
+// Miniature delegates reach outward for `card` and `workspaceSurface`, which
+// is only defined behavior when instances are bound to their creation context.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Wayland

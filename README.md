@@ -1,60 +1,49 @@
 # Omarchy Window Switcher
 
-A keyboard-first window switcher for Omarchy. The window view lists windows in
-most-recently-used (MRU) order. Workspace views can use recent or number order.
+A keyboard-first window switcher for [Omarchy](https://omarchy.org/). The
+window view lists windows in most-recently-used (MRU) order; workspace views
+show composite live previews and can be ordered by recent use or by number.
 
-![Omarchy Window Switcher showing workspace previews](preview.webp)
+![Window switcher showing workspace previews](preview.webp)
 
-## Quick start
+> This is **ctrts' fork** of
+> [devmobasa/omarchy-window-switcher](https://github.com/devmobasa/omarchy-window-switcher),
+> which did the original design and implementation work. It is MIT licensed and
+> the upstream copyright notice is retained in [LICENSE](LICENSE).
+> [CHANGELOG.md](CHANGELOG.md) records exactly what this fork changes.
 
-1. Install the plugin from GitHub:
+## Install
 
-   ```bash
-   omarchy plugin add https://github.com/devmobasa/omarchy-window-switcher.git --enable
-   ```
+This repository is private, so `omarchy plugin add` over https will prompt for
+git credentials. Installing from a local checkout is the simpler path:
 
-2. Add this binding to `~/.config/hypr/bindings.lua`:
+```bash
+git clone https://github.com/ctrts/omarchy-window-switcher.git
+cd omarchy-window-switcher
+omarchy plugin validate .
+cp -a . ~/.config/omarchy/plugins/ctr.window-switcher
+omarchy shell shell rescanPlugins
+omarchy plugin enable ctr.window-switcher
+```
 
-   ```lua
-   hl.unbind("CTRL + TAB")
-   o.bind("CTRL + TAB", "Window switcher", "omarchy shell shell summon community.window-switcher '{\"direction\":1}'")
-   ```
+The copy will not replace an existing installation — remove the target folder
+first if you are reinstalling.
 
-3. Reload the Hyprland configuration:
+Then add the keybinding to `~/.config/hypr/bindings.lua`:
 
-   ```bash
-   hyprctl reload
-   hyprctl configerrors
-   ```
+```lua
+o.bind("CTRL + TAB", "Window switcher", "omarchy-shell shell toggle ctr.window-switcher")
+```
 
-4. Press Ctrl+Tab to open the switcher.
+`CTRL + TAB` is free on a stock Omarchy install — `ALT + TAB` is already
+`cycle_next`, `SUPER + TAB` and `SUPER + CTRL + TAB` are workspace navigation,
+and `CTRL + ALT + TAB` moves between monitors. No `hl.unbind` is needed.
 
-The switcher selects the previously used window or workspace. Use Tab and
-Shift+Tab to move through the items. Press Enter to switch.
+Reload Hyprland and check for errors:
 
-## Features
-
-- Search by application, title, workspace, or monitor. The × in the search box
-  clears the query.
-- Filter windows with workspace pills.
-- Show a window grid or composite workspace previews.
-- Point at a window inside a workspace preview to read its title, then click it
-  to switch to that window.
-- Give numbered workspaces local names without renaming them in Hyprland.
-- Order workspace sections by recent use or workspace number.
-- Target the focused monitor in a multi-monitor layout.
-- Toggle minimized windows and include Hyprland special workspaces.
-- Use application icons as fallbacks for unavailable window capture.
-
-## Requirements
-
-- Omarchy Quattro with the schema-version-1 shell plugin host.
-- Quickshell 0.3.0 or newer with `ToplevelManager` and `ScreencopyView`.
-- Hyprland with `zwlr-foreign-toplevel-management-v1`.
-- `hyprland-toplevel-export-v1` for previews. Window switching works without it.
-
-The plugin uses QML and JavaScript. It does not start another Quickshell
-process, poll `hyprctl`, run background commands, or write preview images.
+```bash
+hyprctl reload && hyprctl configerrors
+```
 
 ## Controls
 
@@ -66,92 +55,81 @@ process, poll `hyprctl`, run background commands, or write preview images.
 | Type / Backspace | Enter or edit a search query |
 | Enter or click | Activate the selected window |
 | Click a window inside a workspace preview | Activate that window |
-| Escape | Clear the search, show all windows, or close the switcher |
-| Ctrl+1 through Ctrl+9 | Filter by workspace 1 through 9 |
+| Escape | Clear the search, then the filter, then close |
+| Ctrl+1 … Ctrl+9 | Filter by workspace 1 through 9 |
 | Ctrl+0 | Filter by workspace 10 |
 | Ctrl+A | Show all windows |
-| Ctrl+M | Show or hide minimized windows for the current opening |
-| Ctrl+O | Change workspace sections between recent and number order |
-| Ctrl+W | Change between the window and workspace views |
-| F2 or right-click a workspace card | Rename that workspace inside this switcher |
+| Ctrl+M | Show or hide minimized windows for this opening |
+| Ctrl+O | Switch workspace sections between recent and number order |
+| Ctrl+W | Switch between the window and workspace views |
 | Ctrl+G | Group the window grid by workspace |
-| Ctrl+Delete | Request closure of the selected window in a window view |
-| Middle-click or the × button | Request closure of a window |
-| Middle-click a window inside a workspace preview | Request closure of that window |
-| Workspace × button | Request closure of all windows on that workspace after a second click |
+| F2 or right-click a workspace card | Rename that workspace inside the switcher |
+| Ctrl+Delete | Close the selected window |
+| Middle-click, or the × button | Close a window |
+| Middle-click a window inside a workspace preview | Close that window |
+| Workspace × button | Close every window on that workspace (needs a second click) |
 
-The × button shows on the selected card only. The pointer selects the card
-that it touches, so the mouse can reach every × button. A workspace pill shows
-its × button while the pointer is on that pill.
+Search matches application, title, workspace, monitor, and any local workspace
+names you have set. The × in the search box clears the query.
 
-A click outside the switcher closes it and restores the original window.
-Clear a workspace name in the editor to restore its default `Workspace N`
-label. When any custom names exist, the workspace header also offers a
-two-click **Reset names** action that restores every default label. Local names
-are saved in this plugin's `shell.json` entry; they do not change Hyprland or
-another workspace widget.
+The × button appears on the selected card only, and the pointer selects
+whichever card it touches, so the mouse can still reach every one. A click
+outside the switcher closes it and restores the window you started from.
+
+Workspace names set here are local to the switcher — they do not rename
+Hyprland workspaces or affect any other widget, and they are saved in this
+plugin's `shell.json` entry. Clearing a name restores the default `Workspace N`
+label; when custom names exist, the workspace header offers a two-click
+**Reset names** action.
 
 ## Configuration
 
-Configuration is part of the plugin entry in `~/.config/omarchy/shell.json`.
-This file is the canonical shell configuration and does not use a deep merge.
+Configuration lives in this plugin's entry in `~/.config/omarchy/shell.json`,
+which is the canonical shell configuration and is not deep-merged.
 
-The default view uses workspace cards, recent workspace order, and still
-previews. You can change the view, order, filter, capture, and activation.
+The defaults are workspace cards, recent workspace order, and still previews.
+You can change the view, order, filter, capture, and activation — every key,
+invocation payload, and limit is documented in the
+[configuration reference](docs/configuration.md).
 
-Read the [configuration reference](docs/configuration.md) for all keys,
-invocation payloads, limits, session behavior, and legacy compatibility.
+## Requirements
+
+- Omarchy with the schema-version-1 shell plugin host (tested against 4.0.3)
+- Quickshell 0.3.0 or newer with `ToplevelManager` and `ScreencopyView`
+- Hyprland with `zwlr-foreign-toplevel-management-v1`
+- `hyprland-toplevel-export-v1` for previews — switching works without it
+
+The plugin is QML and JavaScript only. It starts no processes, polls no
+`hyprctl`, builds no shell commands from window metadata, and writes no
+preview images to disk. See [design and privacy](docs/design.md).
 
 ## Troubleshooting
 
-### The plugin does not open
+### The switcher does not open
 
 ```bash
-omarchy plugin list --json | jq '.[] | select(.id == "community.window-switcher")'
+omarchy plugin list --json | jq '.[] | select(.id == "ctr.window-switcher")'
 omarchy shell shell ping
-omarchy shell shell call community.window-switcher status ""
+omarchy shell shell call ctr.window-switcher status ""
 omarchy shell shell rescanPlugins
 ```
 
-Make sure that the plugin is enabled and present in `shell.json`.
-Remove private window data before you share diagnostic output.
+Confirm the plugin is enabled and present in `shell.json`. Remove private
+window titles before sharing any of that output.
 
-### Cards show icons without previews
+### Cards show icons instead of previews
 
-The compositor or a window does not provide capture access. Switching, search,
-and activation continue to work. Set `previewMode` to `none` to disable capture.
+The compositor, or that particular window, is not offering capture access.
+Switching, search and activation still work. Set `previewMode` to `none` to
+turn capture off entirely.
 
 ### A window is missing
 
-Press Ctrl+A or select the All pill. The header count shows how many windows
-the current filter hides.
-
-If the window remains absent, collect `hyprctl clients -j` and the Wayland app
-ID. Remove private window titles before you report the error.
+Press Ctrl+A or pick the All pill — the header count shows how many windows the
+current filter is hiding. If it is still absent, collect `hyprctl clients -j`
+and the Wayland app id, with private titles removed.
 
 ## Development
-
-### Install a local checkout
-
-From the repository root, run the plugin validator:
-
-```bash
-omarchy plugin validate .
-```
-
-Then copy and enable the local checkout:
-
-```bash
-mkdir -p ~/.config/omarchy/plugins
-plugin_target="$HOME/.config/omarchy/plugins/community.window-switcher"
-[[ ! -e $plugin_target ]] && cp -a . "$plugin_target"
-omarchy shell shell rescanPlugins
-omarchy plugin enable community.window-switcher
-```
-
-The copy command does not replace an existing installation.
-
-### Run the tests
 
 Run the test suite from the repository root:
 
@@ -159,35 +137,39 @@ Run the test suite from the repository root:
 ./test/all
 ```
 
-The suite runs model tests, contract tests, manifest validation, and `qmllint`.
-Read [design and privacy](docs/design.md) for the component map and visual test
-scope.
+It runs the Node model tests, the source contract tests, `omarchy plugin
+validate`, and `qmllint`. The script locates `qmllint` even when it is not on
+PATH (Arch ships it in `/usr/lib/qt6/bin`) and builds a temporary `qs/` module
+tree so the shell's `qs.Commons` and `qs.Ui` imports actually resolve — without
+that, lint silently type-checks nothing and the gate proves nothing.
 
-## More Omarchy plugins
+Three qmllint categories are disabled deliberately, because each is a
+Quickshell structural limit rather than a defect here: `missing-property`
+(Color and Style expose surfaces as inline anonymous `QtObject`s that qmllint
+cannot introspect), `unresolved-type` (Quickshell returns types without
+declarative registration), and `uncreatable-type` (`PanelWindow` is created by
+the runtime).
 
-Explore [devmobasa's public Omarchy plugin collection](https://github.com/devmobasa#omarchy-plugins):
+CI runs the model tests only; the other gates need the Omarchy shell source,
+the `omarchy` CLI, and Qt, none of which exist on a stock runner.
 
-- **Desktop and windows:** [Minimizer Tray](https://github.com/devmobasa/omarchy-minimizer-tray),
-  [Monitor Layout](https://github.com/devmobasa/omarchy-monitor-layout),
-  [Scratchpad Deck](https://github.com/devmobasa/omarchy-scratchpad-deck),
-  [Wallpaper Hub](https://github.com/devmobasa/omarchy-wallpaper-hub),
-  [Window Overview](https://github.com/devmobasa/omarchy-window-overview), and
-  [Window Switcher](https://github.com/devmobasa/omarchy-window-switcher).
-- **Productivity:** [Calendar Agenda](https://github.com/devmobasa/omarchy-calendar-agenda),
-  [Pomodoro](https://github.com/devmobasa/omarchy-pomodoro), and
-  [Screen Time](https://github.com/devmobasa/omarchy-screen-time).
-- **Automation and control:** [Context Rules](https://github.com/devmobasa/omarchy-context-rules),
-  [Game Mode](https://github.com/devmobasa/omarchy-game-mode), and
-  [Omarchy Nexus](https://github.com/devmobasa/omarchy-nexus).
-- **Developer and presentation:** [Dev Inbox](https://github.com/devmobasa/omarchy-dev-inbox),
-  [Git Hygiene](https://github.com/devmobasa/omarchy-git-hygiene),
-  [Keycast](https://github.com/devmobasa/omarchy-keycast), and
-  [Wayscriber Deck](https://github.com/devmobasa/omarchy-wayscriber-deck).
-- **System and privacy:** [Drive Bay](https://github.com/devmobasa/omarchy-drive-bay),
-  [Permission Center](https://github.com/devmobasa/omarchy-permission-center),
-  [Privacy Dots](https://github.com/devmobasa/omarchy-privacy-dots),
-  [systemd Health](https://github.com/devmobasa/omarchy-systemd-health), and
-  [VPN Manager](https://github.com/devmobasa/omarchy-vpn-manager).
+For release validation, install into a disposable Omarchy VM and exercise
+native Wayland, XWayland, Electron, modal, fullscreen, minimized and special
+workspace windows, plus preview failure and mixed-scale multi-monitor layouts.
+
+## Credits
+
+Original design and implementation by
+[devmobasa](https://github.com/devmobasa). `preview.webp` is from the upstream
+project. Their [Omarchy plugin collection](https://github.com/devmobasa#omarchy-plugins)
+is worth reading in full — it includes
+[Window Overview](https://github.com/devmobasa/omarchy-window-overview),
+[Scratchpad Deck](https://github.com/devmobasa/omarchy-scratchpad-deck),
+[Minimizer Tray](https://github.com/devmobasa/omarchy-minimizer-tray),
+[Monitor Layout](https://github.com/devmobasa/omarchy-monitor-layout) and
+[Wallpaper Hub](https://github.com/devmobasa/omarchy-wallpaper-hub) for
+desktop and window management, alongside productivity, automation and
+system plugins.
 
 ## License
 
