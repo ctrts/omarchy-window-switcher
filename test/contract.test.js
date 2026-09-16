@@ -175,6 +175,10 @@ assert.match(recordsSource, /record\.searchBase = \[/,
   'records carry a prebuilt search haystack rather than rebuilding one per keystroke')
 assert.doesNotMatch(snapshotSource, /searchBase/,
   'the cached haystack is not a tracked snapshot field; it contains the title')
+assert.doesNotMatch(recordsSource, /Array\.isArray\(ipc\./,
+  'IPC geometry is a Qt sequence; Array.isArray rejects it and every card falls back to even tiles')
+assert.match(recordsSource, /var at = ipcPair\(ipc\.at\)[\s\S]*?var ipcSize = ipcPair\(ipc\.size\)/,
+  'window rects accept the array-like pairs Hyprland IPC actually delivers')
 assert.match(recordsSource, /appMemo\[cacheKey\] = info/,
   'desktop-entry matching is memoized instead of rescanned for every window')
 assert.match(recordsSource, /objectKeyRows = next[\s\S]{0,240}?appMemo = \(\{\}\)/,

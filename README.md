@@ -102,6 +102,8 @@ stays open so the card shows the result; Enter or Escape carries on as usual.
 | Alt+0 | Grid | Arrangement |
 | Alt+F | Fullscreen | Window |
 
+![Workspace 8 after picking Main left in the layout strip](docs/layouts.webp)
+
 Fullscreen is a toggle on the workspace's most recent window — the one Enter
 switches to — rather than a saved layout. It is marked while that workspace has
 a fullscreen window.

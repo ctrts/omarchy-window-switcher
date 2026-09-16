@@ -111,11 +111,22 @@ QtObject {
     }
   }
 
+  // Hyprland IPC pairs such as `at` and `size` arrive as Qt sequences, not JS
+  // arrays, so Array.isArray() rejects them. Rejecting them nulled every
+  // window rect and silently put every workspace card on the even-tile
+  // fallback instead of real window placement.
+  function ipcPair(value) {
+    if (!value || typeof value.length !== "number" || value.length < 2) return null
+    var first = Number(value[0])
+    var second = Number(value[1])
+    return isFinite(first) && isFinite(second) ? [first, second] : null
+  }
+
   function recordFor(toplevel, sourceIndex, entries) {
     var hyprland = hyprlandToplevelFor(toplevel)
     var ipc = hyprland && hyprland.lastIpcObject ? hyprland.lastIpcObject : {}
-    var at = Array.isArray(ipc.at) ? ipc.at : null
-    var ipcSize = Array.isArray(ipc.size) ? ipc.size : null
+    var at = ipcPair(ipc.at)
+    var ipcSize = ipcPair(ipc.size)
     var appId = String((toplevel && toplevel.appId) || ipc.class || ipc.initialClass || "")
     var appInfo = appInfoFor(appId, entries)
     var workspace = hyprland ? hyprland.workspace : null
@@ -143,10 +154,10 @@ QtObject {
       monitorId: monitorId,
       monitorName: monitorName,
       rect: at && ipcSize ? {
-        x: Number(at[0]) || 0,
-        y: Number(at[1]) || 0,
-        width: Number(ipcSize[0]) || 0,
-        height: Number(ipcSize[1]) || 0
+        x: at[0],
+        y: at[1],
+        width: ipcSize[0],
+        height: ipcSize[1]
       } : null,
       monitorRect: monitorRectFor(monitor),
       active: (toplevel && toplevel.activated === true) || (hyprland && hyprland.activated === true),

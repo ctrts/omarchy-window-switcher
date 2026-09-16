@@ -50,6 +50,12 @@ backed by the test suite and static analysis only.
   At 1200px with a 160px minimum that produced a 159px card, and the scrolling
   fallback that exists precisely to hold the floor recomputed the same 159.
 
+- **Workspace cards now draw windows where they really are.** Records read
+  the window position with `Array.isArray(ipc.at)`, but Hyprland IPC pairs
+  arrive as Qt sequences, which that check rejects. Every rect was null, so
+  every card used the even-tile fallback — and a layout change could never
+  show on its card.
+
 ### Performance
 
 - **Selection no longer reallocates capture buffers.** The selected border was
