@@ -9,6 +9,24 @@ at `93d286a` ("polish workspace switching and controls").
 Nothing below has been exercised on real hardware yet; every claim here is
 backed by the test suite and static analysis only.
 
+### Layouts
+
+- **The workspace view has a layout strip.** It shows ten layouts for the
+  selected workspace card, drawn with that workspace's window count: Hyprland's
+  Dwindle, Scrolling, Monocle and Main left/right/top/center, plus Columns,
+  Rows and Grid arrangements. Click one or press Alt+1 … Alt+0.
+- A **Fullscreen** choice (Alt+F) toggles Hyprland fullscreen for the
+  workspace's most recent window. It is not saved.
+- Arrangements are registered with Hyprland's Lua layout API
+  (`hypr/layouts.lua`), so they keep their shape as windows open and close.
+- The choice is saved to Omarchy's `workspace-layouts` state file, shared with
+  SUPER+L, and survives a Hyprland reload.
+- Verified live on Hyprland 0.56.2 against real windows: every layout
+  rearranges, a master orientation change takes effect, and a saved grid
+  survives `hyprctl reload` and places a newly opened window. The strip UI
+  itself passes lint and the contract tests but has not been exercised on
+  screen yet.
+
 ### Identity
 
 - Plugin id is now `ctr.window-switcher` (was `community.window-switcher`),

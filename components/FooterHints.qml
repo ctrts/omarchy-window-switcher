@@ -14,8 +14,9 @@ RowLayout {
   required property string previewMode
   required property string viewMode
   required property int minimizedCount
+  required property bool layoutsAvailable
 
-  readonly property var hints: WindowModel.footerHints(viewMode, activationMode, minimizedCount)
+  readonly property var hints: WindowModel.footerHints(viewMode, activationMode, minimizedCount, layoutsAvailable)
 
   spacing: Style.spacing.xxl
 

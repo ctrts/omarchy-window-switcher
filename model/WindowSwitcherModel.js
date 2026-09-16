@@ -447,7 +447,7 @@ function workspaceShortcutKey(workspaceId, label) {
 // Footer key legends. The footer is the only place that teaches the keymap,
 // so it names the keys the current view actually answers to rather than the
 // whole map: a hint for a control the header is hiding is a hint that lies.
-function footerHints(view, activation, minimizedCount) {
+function footerHints(view, activation, minimizedCount, layoutsAvailable) {
   var primary = [
     { keys: ["Tab"], label: "select" },
     activation === ACTIVATION_RELEASE
@@ -464,6 +464,10 @@ function footerHints(view, activation, minimizedCount) {
 
   if (view === VIEW_WORKSPACES) {
     secondary.push({ keys: ["F2"], label: "rename" })
+    if (layoutsAvailable === true) {
+      secondary.push({ keys: ["Alt", "1…0"], label: "layout" })
+      secondary.push({ keys: ["Alt", "F"], label: "fullscreen" })
+    }
     addWorkspaceFilterHints()
     if (Number(minimizedCount) > 0) secondary.push({ keys: ["Ctrl", "M"], label: "minimized" })
     secondary.push({ keys: ["Ctrl", "O"], label: "order" })

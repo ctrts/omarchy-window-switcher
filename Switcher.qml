@@ -9,6 +9,7 @@ import "model/WindowSwitcherModel.js" as WindowModel
 import "model/WindowSnapshot.js" as WindowSnapshot
 import "model/Navigation.js" as Nav
 import "model/MruOrder.js" as MruOrder
+import "model/Layouts.js" as Layouts
 
 Item {
   id: root
@@ -61,6 +62,9 @@ Item {
   property int openSerial: 0
   property var openingOverrides: ({})
   property string appliedSettingsKey: ""
+  // Workspace key -> the layout id this switcher last applied there. Hyprland
+  // reports "master" without its orientation, so this names the exact choice.
+  property var appliedLayouts: ({})
 
   // In workspace view the selection indexes windowGroups and the selected
   // window is that workspace's most recently used one.
@@ -72,6 +76,41 @@ Item {
     return selectedIndex >= 0 && selectedIndex < filteredWindows.length ? filteredWindows[selectedIndex] : null
   }
   readonly property int focusedWorkspaceId: Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 0
+
+  // The layout strip acts on the selected workspace card, and only on a card
+  // that stands for a workspace a Hyprland rule can name.
+  readonly property var layoutTarget: {
+    if (viewMode !== WindowModel.VIEW_WORKSPACES) return null
+    var group = selectedIndex >= 0 && selectedIndex < windowGroups.length ? windowGroups[selectedIndex] : null
+    var front = selectedWindow
+    if (!group || !front || group.key === WindowModel.NO_WORKSPACE_KEY) return null
+    if (!Layouts.workspaceTarget(group.id, front.workspaceName)) return null
+    var rect = front.monitorRect
+    return {
+      key: String(group.key),
+      id: Number(group.id),
+      name: String(front.workspaceName || ""),
+      label: WindowModel.workspaceAlias(workspaceNames, group.id) || String(group.defaultLabel || group.label || ""),
+      address: String(front.address || ""),
+      windowCount: Number(group.totalSize) || Number(group.size) || 1,
+      aspect: rect && rect.width > 0 && rect.height > 0 ? rect.width / rect.height : 16 / 9
+    }
+  }
+  readonly property var layoutTargetWorkspace: {
+    if (!layoutTarget) return null
+    var workspaces = Hyprland.workspaces.values || []
+    for (var i = 0; i < workspaces.length; i++)
+      if (workspaces[i] && workspaces[i].id === layoutTarget.id) return workspaces[i]
+    return null
+  }
+  readonly property string layoutTargetTiledLayout: {
+    var ipc = layoutTargetWorkspace ? layoutTargetWorkspace.lastIpcObject : null
+    return ipc && ipc.tiledLayout ? String(ipc.tiledLayout) : ""
+  }
+  readonly property bool layoutTargetHasFullscreen: layoutTargetWorkspace !== null
+    && layoutTargetWorkspace.hasFullscreen === true
+  readonly property string layoutTargetCurrentId: layoutTarget
+    ? Layouts.currentLayoutId(layoutTargetTiledLayout, appliedLayouts[layoutTarget.key]) : ""
 
   function pluginSettings() {
     if (!shell || !shell.shellConfig || !Array.isArray(shell.shellConfig.plugins)) return {}
@@ -438,6 +477,40 @@ Item {
     Qt.callLater(function() { if (root.opened) keySurface.forceActiveFocus() })
   }
 
+  // Hyprland applies the rule at once and rearranges the workspace; the
+  // switcher stays open so its card shows the new arrangement.
+  function applyLayout(layoutId) {
+    var target = layoutTarget
+    if (!target) return
+    var request = Layouts.dispatchRequest(
+      layoutId, target.id, target.name, Qt.resolvedUrl("hypr/layouts.lua"))
+    if (!sendCompositorRequest(request)) return
+    var next = {}
+    for (var key in appliedLayouts) next[key] = appliedLayouts[key]
+    next[target.key] = layoutId
+    appliedLayouts = next
+    layoutSettle.restart()
+  }
+
+  // The one path to the compositor. Requests come only from model/Layouts.js.
+  function sendCompositorRequest(request) {
+    if (!request) return false
+    Hyprland.dispatch(request)
+    return true
+  }
+
+  // Fullscreen toggles the card's most recent window, the one Enter switches to.
+  function toggleLayoutTargetFullscreen() {
+    var target = layoutTarget
+    if (!target || !sendCompositorRequest(Layouts.fullscreenRequest(target.address))) return
+    layoutSettle.restart()
+  }
+
+  function applyLayoutDigit(digit) {
+    var layout = Layouts.layoutForDigit(digit)
+    if (layout) applyLayout(layout.id)
+  }
+
   function beginCaptureRamp() {
     captureRamp.stop()
     activeCaptureLimit = 0
@@ -627,6 +700,7 @@ Item {
     // it up with a follow-up rebuild once the roundtrip has settled.
     Hyprland.refreshToplevels()
     Hyprland.refreshMonitors()
+    Hyprland.refreshWorkspaces()
     geometrySettle.restart()
     rebuildWindows(options.direction)
     Qt.callLater(function() { if (root.opened) root.revealProgress = 1 })
@@ -664,6 +738,10 @@ Item {
       minimizedCount: minimizedCount,
       maxInitialCaptures: maxInitialCaptures,
       activeCaptureLimit: activeCaptureLimit,
+      layoutTarget: layoutTarget ? layoutTarget.key : "",
+      layoutTargetTiledLayout: layoutTargetTiledLayout,
+      layoutTargetCurrentId: layoutTargetCurrentId,
+      layoutTargetHasFullscreen: layoutTargetHasFullscreen,
       targetScreen: targetScreen ? String(targetScreen.name || "") : ""
     })
   }
@@ -733,6 +811,20 @@ Item {
     onTriggered: {
       root.rebuildWindows()
       if (root.activeCaptureLimit === 0) root.beginCaptureRamp()
+    }
+  }
+
+  // Windows animate into a new layout, and the IPC snapshot only reports the
+  // new geometry once asked after the move. Ask once the layout has settled.
+  Timer {
+    id: layoutSettle
+
+    interval: 320
+    onTriggered: {
+      if (!root.opened) return
+      Hyprland.refreshWorkspaces()
+      Hyprland.refreshToplevels()
+      geometrySettle.restart()
     }
   }
 
@@ -815,6 +907,8 @@ Item {
       onGroupToggleRequested: root.setViewMode(root.viewMode === WindowModel.VIEW_GROUPED
         ? WindowModel.VIEW_WINDOWS : WindowModel.VIEW_GROUPED)
       onWorkspaceDigitPressed: function(workspaceId) { root.toggleWorkspaceFilter(workspaceId) }
+      onLayoutDigitPressed: function(digit) { root.applyLayoutDigit(digit) }
+      onFullscreenToggleRequested: root.toggleLayoutTargetFullscreen()
       onCloseWindowRequested: root.closeSelectedWindow()
       onQueryEdited: function(nextQuery) { root.updateQuery(nextQuery) }
       onModifierReleased: root.commitSelected()
@@ -916,12 +1010,25 @@ Item {
             onWorkspaceWindowCloseRequested: function(windowIndex) { root.closeWindowAt(windowIndex) }
           }
 
+          LayoutStrip {
+            Layout.fillWidth: true
+            visible: root.layoutTarget !== null
+            targetLabel: root.layoutTarget ? root.layoutTarget.label : ""
+            windowCount: root.layoutTarget ? root.layoutTarget.windowCount : 0
+            aspect: root.layoutTarget ? root.layoutTarget.aspect : 16 / 9
+            currentLayoutId: root.layoutTargetCurrentId
+            fullscreenActive: root.layoutTargetHasFullscreen
+            onLayoutPicked: function(layoutId) { root.applyLayout(layoutId) }
+            onFullscreenToggled: root.toggleLayoutTargetFullscreen()
+          }
+
           FooterHints {
             Layout.fillWidth: true
             activationMode: root.activationMode
             previewMode: root.previewMode
             viewMode: root.viewMode
             minimizedCount: root.minimizedCount
+            layoutsAvailable: root.layoutTarget !== null
           }
         }
       }

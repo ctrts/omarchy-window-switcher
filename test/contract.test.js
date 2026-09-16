@@ -26,6 +26,8 @@ const workspaceNamesReset = read('components/WorkspaceNamesReset.qml')
 const switcherHeader = read('components/SwitcherHeader.qml')
 const closeButton = read('components/CloseButton.qml')
 const footerHints = read('components/FooterHints.qml')
+const layoutStrip = read('components/LayoutStrip.qml')
+const layoutThumb = read('components/LayoutThumb.qml')
 const allQml = [switcher].concat(
   fs.readdirSync(path.join(root, 'components'))
     .filter(name => name.endsWith('.qml'))
@@ -334,6 +336,39 @@ assert.match(filterPill, /id: countChip/,
   'the window count wears a filled chip so it cannot be read as another digit')
 assert.match(filterPill, /opacity: pillArea\.containsMouse \|\| pillClose\.hot \? 1 : 0/,
   'the pill close button is revealed under the pointer without reflowing the row')
+
+// ------------------------------------------------------------ layouts
+//
+// Layouts are the one place the switcher changes the compositor rather than
+// focus. Everything that reaches Hyprland goes through the tested request
+// builder, and the Lua it runs ships with the plugin.
+
+assert.match(switcher, /function sendCompositorRequest\(request\)[\s\S]*?Hyprland\.dispatch\(request\)/,
+  'layouts are applied through the Hyprland IPC client')
+assert.match(switcher, /sendCompositorRequest\(Layouts\.fullscreenRequest\(target\.address\)\)/,
+  'fullscreen goes through the same request path with a validated address')
+assert.match(keySurface, /alt && !ctrl && event\.key === Qt\.Key_F/, 'Alt+F toggles fullscreen')
+assert.match(layoutStrip, /layoutData: Layouts\.FULLSCREEN[\s\S]*?current: strip\.fullscreenActive/,
+  'the Window section marks a workspace that already has a fullscreen window')
+assert.equal((allQml.match(/Hyprland\.dispatch\(/g) || []).length, 1, 'there is exactly one compositor request path')
+assert.match(switcher, /var request = Layouts\.dispatchRequest\(\s*layoutId, target\.id, target\.name, Qt\.resolvedUrl\("hypr\/layouts\.lua"\)\)/,
+  'the request is built by the tested model from validated parts')
+assert.match(switcher, /if \(viewMode !== WindowModel\.VIEW_WORKSPACES\) return null/,
+  'the layout strip only targets a workspace card')
+assert.match(switcher, /LayoutStrip \{[\s\S]*?visible: root\.layoutTarget !== null/,
+  'the strip leaves the layout when there is no workspace to act on')
+assert.match(switcher, /Hyprland\.refreshWorkspaces\(\)/, 'the current layout is read from a refreshed workspace snapshot')
+assert.match(switcher, /id: layoutSettle[\s\S]*?geometrySettle\.restart\(\)/,
+  'the workspace card redraws once windows have moved into the new layout')
+assert.doesNotMatch(switcher, /function applyLayout[\s\S]{0,600}?beginClose\(\)/,
+  'applying a layout keeps the switcher open so the card shows the result')
+assert.match(keySurface, /alt && !ctrl && event\.key >= Qt\.Key_0 && event\.key <= Qt\.Key_9/,
+  'Alt+digit picks a layout without taking Ctrl+digit from the workspace filter')
+assert.match(layoutStrip, /text: "Layout for"/, 'the strip names the workspace it will change')
+assert.match(layoutThumb, /Layouts\.previewRects\(layoutData\.id, windowCount, aspect\)/,
+  'thumbnails draw the tested schematic for the real window count')
+assert.match(layoutThumb, /text: thumb\.shortcutText/, 'each thumbnail wears the key that applies it')
+assert.match(layoutStrip, /shortcutText: Layouts\.shortcutKey\(index\)/, 'layout keys come from the tested model')
 
 // -------------------------------------------------------- the search field
 

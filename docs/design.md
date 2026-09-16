@@ -22,8 +22,19 @@ closes, avoiding a plugin reload in the middle of inline editing.
 After a shell reload, the plugin uses window MRU to fill missing workspace
 history. Focus events replace this estimate as the user changes workspaces.
 
-The plugin uses QML and JavaScript only. It does not start helper processes or
+The plugin uses QML and JavaScript, plus `hypr/layouts.lua`, which runs inside
+Hyprland rather than in the shell. It does not start helper processes or
 construct shell commands from window metadata or invocation payloads.
+
+The layout strip is the one place the switcher changes the compositor rather
+than focus. `model/Layouts.js` builds a single `Hyprland.dispatch()` request.
+Hyprland evaluates a dispatch as `hl.dispatch(<request>)`, which accepts a
+function, so the request is `function() dofile(<module>).apply(...) end`.
+Every value in it is a validated workspace selector and id, a catalog layout
+id, or the plugin's own file path; nothing comes from a window title or a
+payload. The module sets a workspace rule, registers the arrangement layouts
+once per Hyprland Lua state, and saves the rule to Omarchy's
+`workspace-layouts` state file.
 
 ## Component map
 
@@ -41,6 +52,10 @@ construct shell commands from window metadata or invocation payloads.
 - `components/WindowCard.qml` creates a capture only for a scheduled window.
 - `components/WorkspaceCard.qml` places window captures at their reported
   workspace geometry. Each miniature is a pointer target for its own window.
+- `model/Layouts.js` holds the layout catalog, the schematic preview geometry,
+  and the dispatch request builder. `hypr/layouts.lua` is its Hyprland side.
+- `components/LayoutStrip.qml` and `components/LayoutThumb.qml` draw the
+  layout picker for the selected workspace card.
 - `components/KeyCap.qml` and `components/KeyHint.qml` draw the key legends
   that the footer and the workspace pills share.
 - The root capture ramp waits for refreshed compositor geometry and then
@@ -77,6 +92,23 @@ newly and previously selected card at every Tab press.
 Switching views destroys every delegate and builds the other view's set from
 nothing. Without restarting the ramp they all attach screencopy sources in a
 single frame, which is the allocation stall the ramp exists to prevent.
+
+**A master orientation change passes through dwindle on a later tick.**
+Hyprland rebuilds a workspace's layout only when the layout *name* changes, so
+switching Main left to Main right updates the rule and moves nothing. Two rules
+in the same Lua call collapse into one, so the module sets dwindle and applies
+master from a one-shot `hl.timer`.
+
+**Hyprland registers each arrangement once per Lua state.**
+`hl.layout.register` rejects a duplicate name, and a config reload builds a
+fresh state, which clears the registrations. The module keeps a global flag
+that dies with the state, and a saved arrangement file registers the layouts
+again before its rule.
+
+**`tiledLayout` from IPC is not trusted for registered layouts.** Hyprland's
+IPC reports one registered name for every Lua layout, and reports `master`
+without its orientation. The strip marks the layout the switcher last applied
+for as long as it agrees with the reported family.
 
 ## Visual hierarchy
 

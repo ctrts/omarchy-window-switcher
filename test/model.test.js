@@ -451,6 +451,10 @@ assert.deepEqual(model.footerHints(model.VIEW_WORKSPACES, model.ACTIVATION_EXPLI
   .secondary.map(hint => hint.label),
   ['rename', 'filter', 'workspace 10', 'minimized', 'order', 'windows'],
   'workspace view includes every visible session control')
+assert.deepEqual(model.footerHints(model.VIEW_WORKSPACES, model.ACTIVATION_EXPLICIT, 0, true)
+  .secondary.slice(0, 3).map(hint => hint.keys.join('+') + ' ' + hint.label),
+  ['F2 rename', 'Alt+1…0 layout', 'Alt+F fullscreen'],
+  'the layout shortcut is taught only while the layout strip has a target')
 assert.ok(model.footerHints(model.VIEW_GROUPED, model.ACTIVATION_EXPLICIT, 0)
   .secondary.every(hint => hint.label !== 'rename'),
   'only the workspace view offers renaming')

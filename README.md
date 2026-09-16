@@ -68,6 +68,8 @@ hyprctl reload && hyprctl configerrors
 | Middle-click, or the × button | Close a window |
 | Middle-click a window inside a workspace preview | Close that window |
 | Workspace × button | Close every window on that workspace (needs a second click) |
+| Click a layout, or Alt+1 … Alt+0 | Rearrange the selected workspace into that layout |
+| Click Fullscreen, or Alt+F | Toggle fullscreen for the selected workspace's most recent window |
 
 Search matches application, title, workspace, monitor, and any local workspace
 names you have set. The × in the search box clears the query.
@@ -81,6 +83,40 @@ Hyprland workspaces or affect any other widget, and they are saved in this
 plugin's `shell.json` entry. Clearing a name restores the default `Workspace N`
 label; when custom names exist, the workspace header offers a two-click
 **Reset names** action.
+
+## Layouts
+
+In the workspace view, a strip under the cards offers ten layouts for the
+selected workspace, each drawn with that workspace's window count. Click one,
+or press its Alt+digit, and Hyprland rearranges the workspace. The switcher
+stays open so the card shows the result; Enter or Escape carries on as usual.
+
+| Key | Layout | Kind |
+|---|---|---|
+| Alt+1 | Dwindle | Hyprland |
+| Alt+2 | Scrolling | Hyprland |
+| Alt+3 | Monocle | Hyprland |
+| Alt+4 … Alt+7 | Main left, right, top, center (master) | Hyprland |
+| Alt+8 | Columns | Arrangement |
+| Alt+9 | Rows | Arrangement |
+| Alt+0 | Grid | Arrangement |
+| Alt+F | Fullscreen | Window |
+
+Fullscreen is a toggle on the workspace's most recent window — the one Enter
+switches to — rather than a saved layout. It is marked while that workspace has
+a fullscreen window.
+
+Arrangements are real tiling layouts registered through Hyprland's Lua layout
+API by [`hypr/layouts.lua`](hypr/layouts.lua), so windows opened later still
+fall into the shape. Nothing needs to be added to `~/.config/hypr`.
+
+The choice is saved to `~/.local/state/omarchy/workspace-layouts/<id>.lua`,
+the same file Omarchy's own SUPER+L layout toggle writes, so a config reload
+restores whichever of the two ran last. Delete that file to go back to the
+default layout after the next reload. If the plugin is removed, a saved
+arrangement falls back to Hyprland's default layout.
+
+Requires Hyprland 0.56 or newer with the Lua config.
 
 ## Configuration
 
@@ -99,9 +135,10 @@ invocation payload, and limit is documented in the
 - Hyprland with `zwlr-foreign-toplevel-management-v1`
 - `hyprland-toplevel-export-v1` for previews — switching works without it
 
-The plugin is QML and JavaScript only. It starts no processes, polls no
-`hyprctl`, builds no shell commands from window metadata, and writes no
-preview images to disk. See [design and privacy](docs/design.md).
+The plugin is QML and JavaScript, plus one Lua module that runs inside
+Hyprland when you pick a layout. It starts no processes, polls no `hyprctl`,
+builds no shell commands from window metadata, and writes no preview images to
+disk. See [design and privacy](docs/design.md).
 
 ## Troubleshooting
 
@@ -137,7 +174,8 @@ Run the test suite from the repository root:
 ./test/all
 ```
 
-It runs the Node model tests, the source contract tests, `omarchy plugin
+It runs the Node model tests, the source contract tests, the Lua layout module
+against a stand-in `hl` table (when `lua` is installed), `omarchy plugin
 validate`, and `qmllint`. The script locates `qmllint` even when it is not on
 PATH (Arch ships it in `/usr/lib/qt6/bin`) and builds a temporary `qs/` module
 tree so the shell's `qs.Commons` and `qs.Ui` imports actually resolve — without

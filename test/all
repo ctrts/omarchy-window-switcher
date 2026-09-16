@@ -14,6 +14,17 @@ for test_file in "$PLUGIN_DIR"/test/*.test.js; do
   node "$test_file"
 done
 
+# hypr/layouts.lua runs inside Hyprland's Lua, so it is exercised with a real
+# interpreter against a stand-in `hl` table.
+LUA=${LUA:-$(command -v lua5.4 || command -v lua || true)}
+if [[ -n $LUA ]]; then
+  LUA_STATE=$(mktemp -d)
+  XDG_STATE_HOME="$LUA_STATE" "$LUA" "$PLUGIN_DIR/test/layouts.test.lua" "$PLUGIN_DIR"
+  rm -rf "$LUA_STATE"
+else
+  echo "lua not found; skipping hypr/layouts.lua tests" >&2
+fi
+
 OMARCHY_PATH="$OMARCHY_SOURCE" omarchy plugin validate "$PLUGIN_DIR"
 
 # qmllint ships with qt6-declarative but Arch does not put it on PATH.

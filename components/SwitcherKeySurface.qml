@@ -23,6 +23,8 @@ Item {
   signal viewToggleRequested()
   signal groupToggleRequested()
   signal workspaceDigitPressed(int workspaceId)
+  signal layoutDigitPressed(int digit)
+  signal fullscreenToggleRequested()
   signal closeWindowRequested()
   signal queryEdited(string nextQuery)
   signal modifierReleased()
@@ -34,6 +36,7 @@ Item {
   Keys.onPressed: function(event) {
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
     var shift = (event.modifiers & Qt.ShiftModifier) !== 0
+    var alt = (event.modifiers & Qt.AltModifier) !== 0
 
     if (event.key === Qt.Key_Escape) {
       surface.escapePressed()
@@ -76,6 +79,12 @@ Item {
       event.accepted = true
     } else if (ctrl && event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
       surface.workspaceDigitPressed(WindowModel.digitWorkspaceId(event.key - Qt.Key_0))
+      event.accepted = true
+    } else if (alt && !ctrl && event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
+      surface.layoutDigitPressed(event.key - Qt.Key_0)
+      event.accepted = true
+    } else if (alt && !ctrl && event.key === Qt.Key_F) {
+      surface.fullscreenToggleRequested()
       event.accepted = true
     } else if (ctrl && event.key === Qt.Key_Delete) {
       surface.closeWindowRequested()
