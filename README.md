@@ -20,14 +20,23 @@ git credentials. Installing from a local checkout is the simpler path:
 ```bash
 git clone https://github.com/ctrts/omarchy-window-switcher.git
 cd omarchy-window-switcher
-omarchy plugin validate .
-cp -a . ~/.config/omarchy/plugins/ctr.window-switcher
-omarchy shell shell rescanPlugins
-omarchy plugin enable ctr.window-switcher
+./install.sh
 ```
 
-The copy will not replace an existing installation — remove the target folder
-first if you are reinstalling.
+`install.sh` validates the checkout, copies it (without `.git`, `test/` or the
+docs), registers it, **restarts the shell**, and reports whether the shell can
+see the plugin. It is safe to re-run; that is also how you reinstall.
+
+The restart is the part that matters. The manifest sets `keepLoaded: true`, so
+the overlay stays cached for the life of the shell and a rescan keeps running
+the QML that was loaded at startup. A shell that has been up for days will
+report the plugin as `enabled`, answer `summon` with `ok`, and show nothing at
+all. Only `omarchy restart shell` loads new QML, and it refuses while the
+screen is locked — the script checks for that and says so rather than failing
+obscurely.
+
+Pass `--no-restart` to copy and register without restarting, if you would
+rather pick the moment yourself.
 
 Then add the keybinding to `~/.config/hypr/bindings.lua`:
 
@@ -53,6 +62,8 @@ hyprctl reload && hyprctl configerrors
 | Arrow keys | Move through the grid |
 | Ctrl+H/J/K/L | Move through the grid with Vim-style keys |
 | Type / Backspace | Enter or edit a search query |
+| Ctrl+Backspace / Ctrl+U | Delete the last word, or clear the query |
+| Ctrl+V | Paste into the search query |
 | Enter or click | Activate the selected window |
 | Click a window inside a workspace preview | Activate that window |
 | Escape | Clear the search, then the filter, then close |
@@ -146,15 +157,44 @@ disk. See [design and privacy](docs/design.md).
 
 ### The switcher does not open
 
+Two different failures wear this face, and they need opposite fixes. Find out
+which one you have first:
+
 ```bash
-omarchy plugin list --json | jq '.[] | select(.id == "ctr.window-switcher")'
-omarchy shell shell ping
-omarchy shell shell call ctr.window-switcher status ""
-omarchy shell shell rescanPlugins
+omarchy-shell shell summon ctr.window-switcher '{}'
 ```
 
-Confirm the plugin is enabled and present in `shell.json`. Remove private
-window titles before sharing any of that output.
+**It opens.** Then the plugin is fine and the *keybinding* is not reaching it.
+`toggle` returns nothing at all, so the binding fails silently; `summon`
+returns `ok` or `unknown`, which is why it is the better probe. Check that
+Hyprland actually holds the binding, not just that the file does:
+
+```bash
+hyprctl binds -j | jq '.[] | select(.key == "TAB" and .modmask == 4)'
+```
+
+An empty result with the `o.bind` line still present in `bindings.lua` means
+Hyprland's live state has drifted from the file — anything that rewrites
+`bindings.lua` can do it. `hyprctl reload` restores it.
+
+**It does not open.** Then the shell is running QML that predates your install:
+
+```bash
+quickshell list --all          # a long "running for" is the tell
+omarchy restart shell          # unlock the screen first; it refuses while locked
+```
+
+`./install.sh` does that restart for you, which is the whole reason it exists.
+
+Failing both, confirm the plugin is enabled and present in `shell.json`:
+
+```bash
+omarchy plugin list --json | jq '.[] | select(.id == "ctr.window-switcher")'
+omarchy-shell shell ping
+omarchy-shell shell listPlugins
+```
+
+Remove private window titles before sharing any of that output.
 
 ### Cards show icons instead of previews
 
