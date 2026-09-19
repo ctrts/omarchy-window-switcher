@@ -971,8 +971,12 @@ Item {
         // same height. A wider panel is the cheapest room to give: the grid
         // reserves the selection growth out of whatever it gets, so every extra
         // pixel here becomes margin around the cards rather than bigger cards.
+        // Wider than it was, but no taller. Width was the axis that ran out:
+        // cards are usually width-constrained, so the extra becomes margin
+        // around them. Height is not — a single row of cards cannot grow into
+        // it, so raising it only opened dead space above and below.
         width: Math.max(360, Math.min(parent.width - Style.space(24), parent.width * 0.94))
-        height: Math.max(300, Math.min(parent.height - Style.space(24), parent.height * 0.90))
+        height: Math.max(300, Math.min(parent.height - Style.space(40), parent.height * 0.84))
         anchors.centerIn: parent
         color: Color.menu.background
         radius: Style.cornerRadius
