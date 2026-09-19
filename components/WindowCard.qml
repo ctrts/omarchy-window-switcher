@@ -3,7 +3,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import "../model/WindowSwitcherModel.js" as WindowModel
@@ -64,7 +63,10 @@ CardFrame {
       smooth: true
       opacity: card.previewReady ? 0 : 0.82
 
-      Behavior on opacity { NumberAnimation { duration: 100 } }
+      // Honour the configured duration rather than a literal. `animationMs`
+      // was already threaded down to every card for this; it just was not
+      // being read, so the setting moved the overlay and left the cards.
+      Behavior on opacity { NumberAnimation { duration: card.animationMs } }
     }
 
     Loader {

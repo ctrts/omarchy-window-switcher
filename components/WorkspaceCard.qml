@@ -3,7 +3,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import "../model/Metrics.js" as Metrics
@@ -21,7 +20,6 @@ CardFrame {
   required property int firstWindowIndex
   required property int captureLimit
   required property var workspaceNames
-  required property int animationMs
   required property bool renaming
 
   signal activateRequested()
@@ -163,8 +161,21 @@ CardFrame {
           ScreencopyView {
             id: miniCapture
 
-            anchors.fill: parent
-            anchors.margins: Style.spacing.hairline
+            // Fit to the captured buffer's own shape rather than filling the
+            // miniature. The miniature is sized from the window's geometry,
+            // which is close to the buffer's aspect but not identical to it —
+            // borders, the hairline inset and rounding all shift it — and
+            // forcing the capture into that rect crops the content against
+            // the frame. The window view has always fitted its preview this
+            // way; the miniature was the one place that did not.
+            readonly property real sourceAspect: sourceSize.height > 0
+              ? sourceSize.width / sourceSize.height : 1.6
+            readonly property real fitWidth: miniWindow.width - Style.spacing.hairline * 2
+            readonly property real fitHeight: miniWindow.height - Style.spacing.hairline * 2
+
+            anchors.centerIn: parent
+            width: Math.max(1, Math.min(fitWidth, fitHeight * sourceAspect))
+            height: Math.max(1, Math.min(fitHeight, fitWidth / sourceAspect))
             captureSource: card.switcherOpen && card.captureEnabled && miniWindow.captureAllowed
               && miniWindow.windowData ? miniWindow.windowData.toplevel : null
             live: card.previewMode === WindowModel.PREVIEW_LIVE_SELECTED
