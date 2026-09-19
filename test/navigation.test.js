@@ -24,6 +24,30 @@ assert.equal(nav.moveGrouped(0, 0, -1, [2, 3], 2), 4, 'up wraps to the last row 
 assert.equal(nav.moveGrouped(2, 0, -1, [2, 3], 2), 0, 'up enters the previous section at its last row')
 assert.equal(nav.moveGrouped(0, 0, 1, [], 2), -1)
 
+// A sticky desired column makes vertical movement reversible. Without one,
+// clamping into a short last row rewrites the column: 5 items across 3
+// columns went 2 -> Down -> 4 -> Up -> 1 and never came back.
+assert.equal(nav.columnOf(2, 3), 2, 'a flat index reports its column')
+assert.equal(nav.columnOf(4, 3), 1, 'the short last row reports the column it landed in')
+assert.equal(nav.columnOfGrouped(3, [2, 3], 2), 1, 'a grouped column is relative to its section')
+assert.equal(nav.columnOfGrouped(0, [2, 3], 2), 0, 'the first card of the first section is column 0')
+
+assert.equal(nav.moveGrid(2, 0, 1, 5, 3, 2), 4, 'down still clamps into the short row')
+assert.equal(nav.moveGrid(4, 0, -1, 5, 3, 2), 2,
+  'up returns to the held column, not the one the clamp produced')
+assert.equal(nav.moveGrid(4, 0, -1, 5, 3), 1,
+  'without a held column the old, non-reversible behaviour is unchanged')
+
+// The round trip itself, which is the property that matters.
+var held = nav.columnOf(2, 3)
+var down = nav.moveGrid(2, 0, 1, 5, 3, held)
+assert.equal(nav.moveGrid(down, 0, -1, 5, 3, held), 2, 'down then up returns to the start')
+
+var groupedHeld = nav.columnOfGrouped(1, [2, 3], 2)
+var groupedDown = nav.moveGrouped(1, 0, 1, [2, 3], 2, groupedHeld)
+assert.equal(nav.moveGrouped(groupedDown, 0, -1, [2, 3], 2, groupedHeld), 1,
+  'grouped down then up returns to the start')
+
 // Card reveal inside a section taller than the viewport.
 assert.equal(nav.revealOffset(100, 400, 120, 160, 0, 900), 100,
   'a visible card keeps the current scroll position')

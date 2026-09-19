@@ -20,7 +20,36 @@ function moveSequential(index, direction, count) {
   return wrappedIndex((Number(index) || 0) + (Number(direction) < 0 ? -1 : 1), count)
 }
 
-function moveGrid(index, horizontal, vertical, count, columns) {
+// The column a flat index sits in. Callers keep this as the "desired column"
+// so a vertical move through a short row can come back to where it started.
+function columnOf(index, columns) {
+  var cols = Math.max(1, Math.floor(Number(columns) || 1))
+  return Math.max(0, Math.floor(Number(index) || 0)) % cols
+}
+
+// The same, for the grouped view, where a column is relative to the section
+// the index falls in rather than to the flat order.
+function columnOfGrouped(index, groupSizes, columns) {
+  var cols = Math.max(1, Math.floor(Number(columns) || 1))
+  var values = groupSizes || []
+  var target = Math.max(0, Math.floor(Number(index) || 0))
+  var start = 0
+  for (var i = 0; i < values.length; i++) {
+    var size = Math.max(0, Math.floor(Number(values[i]) || 0))
+    if (size <= 0) continue
+    if (target < start + size) return (target - start) % cols
+    start += size
+  }
+  return 0
+}
+
+// `desiredColumn` is the column the selection is *trying* to hold. Without it,
+// landing in a short last row rewrites the column and the move stops being
+// reversible: 5 items across 3 columns, 2 -> Down -> 4 -> Up -> 1. Clamping
+// still decides where you land, but the remembered column decides where the
+// next vertical move aims, so Down-then-Up returns to 2. Pass -1 (or nothing)
+// to keep the old behaviour of reading the column off the current index.
+function moveGrid(index, horizontal, vertical, count, columns, desiredColumn) {
   var total = Math.max(0, Number(count) || 0)
   if (total === 0) return -1
   var current = wrappedIndex(index, total)
@@ -34,7 +63,8 @@ function moveGrid(index, horizontal, vertical, count, columns) {
   }
   if (!vertical) return current
 
-  var column = current % cols
+  var wanted = Number(desiredColumn)
+  var column = wanted >= 0 && isFinite(wanted) ? Math.floor(wanted) % cols : current % cols
   var rows = Math.ceil(total / cols)
   var row = Math.floor(current / cols)
   var targetRow = ((row + (vertical < 0 ? -1 : 1)) % rows + rows) % rows
@@ -46,7 +76,7 @@ function moveGrid(index, horizontal, vertical, count, columns) {
 // Grid navigation across workspace sections: vertical moves stay in the same
 // column, continuing into the neighbouring section past a section's edge;
 // horizontal moves walk the flat order so they cross sections naturally.
-function moveGrouped(index, horizontal, vertical, groupSizes, columns) {
+function moveGrouped(index, horizontal, vertical, groupSizes, columns, desiredColumn) {
   var sizes = []
   var total = 0
   var values = groupSizes || []
@@ -71,7 +101,8 @@ function moveGrouped(index, horizontal, vertical, groupSizes, columns) {
   }
   var offset = current - start
   var row = Math.floor(offset / cols)
-  var column = offset % cols
+  var wanted = Number(desiredColumn)
+  var column = wanted >= 0 && isFinite(wanted) ? Math.floor(wanted) % cols : offset % cols
   var rows = Math.ceil(sizes[group] / cols)
   var targetRow = row + (Number(vertical) < 0 ? -1 : 1)
 
@@ -111,6 +142,8 @@ if (typeof module !== "undefined") {
     initialSelection: initialSelection,
     wrappedIndex: wrappedIndex,
     moveSequential: moveSequential,
+    columnOf: columnOf,
+    columnOfGrouped: columnOfGrouped,
     moveGrid: moveGrid,
     moveGrouped: moveGrouped,
     revealOffset: revealOffset
