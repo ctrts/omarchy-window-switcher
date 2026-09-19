@@ -39,14 +39,18 @@ Item {
   signal workspaceWindowCloseRequested(int windowIndex)
 
   // Room for the selected card's scale and ring, which the views would clip.
-  readonly property real fitHeight: Metrics.selectionFitHeight(height, Style.space(3) + Style.spacing.hairline)
+  // Both axes: reserving only the height left a selected card in the first or
+  // last column to grow into the view's clip edge and lose its miniatures.
+  readonly property real selectionRing: Style.space(3) + Style.spacing.hairline
+  readonly property real fitHeight: Metrics.selectionFitHeight(height, selectionRing)
+  readonly property real fitWidth: Metrics.selectionFitWidth(width, selectionRing)
   readonly property var flatMetrics: Metrics.compactRows(Metrics.gridMetrics(
-    windows.length, width, fitHeight,
+    windows.length, fitWidth, fitHeight,
     Style.spacing.xxl, Style.space(160), 1.6, Style.space(68)), Style.spacing.xxl)
   readonly property var groupMetrics: Metrics.flowMetrics(
-    width, Style.spacing.xxl, Style.space(160), 1.6, Style.space(68))
+    fitWidth, Style.spacing.xxl, Style.space(160), 1.6, Style.space(68))
   readonly property var workspaceMetrics: Metrics.compactRows(Metrics.gridMetrics(
-    groups.length, width, fitHeight,
+    groups.length, fitWidth, fitHeight,
     Style.spacing.xxl, Style.space(240), Metrics.monitorAspect(windows), Style.space(68)), Style.spacing.xxl)
 
   readonly property int flatColumns: flatMetrics.columns
@@ -69,6 +73,12 @@ Item {
   Loader {
     id: flatLoader
 
+    // Full width on purpose. Sizing the loader to `fitWidth` looked like
+    // centring, but the cells are measured against `fitWidth` too, so
+    // columns x cellWidth filled the view exactly and cancelled the reserve
+    // out — the selected card's growth then had nowhere to go and both outer
+    // cards lost an edge. The views keep the slack and centre their content
+    // into it instead.
     anchors.fill: parent
     active: area.viewMode === WindowModel.VIEW_WINDOWS
 
@@ -89,6 +99,12 @@ Item {
   Loader {
     id: groupedLoader
 
+    // Full width on purpose. Sizing the loader to `fitWidth` looked like
+    // centring, but the cells are measured against `fitWidth` too, so
+    // columns x cellWidth filled the view exactly and cancelled the reserve
+    // out — the selected card's growth then had nowhere to go and both outer
+    // cards lost an edge. The views keep the slack and centre their content
+    // into it instead.
     anchors.fill: parent
     active: area.viewMode === WindowModel.VIEW_GROUPED
 
@@ -111,6 +127,12 @@ Item {
   Loader {
     id: workspaceLoader
 
+    // Full width on purpose. Sizing the loader to `fitWidth` looked like
+    // centring, but the cells are measured against `fitWidth` too, so
+    // columns x cellWidth filled the view exactly and cancelled the reserve
+    // out — the selected card's growth then had nowhere to go and both outer
+    // cards lost an edge. The views keep the slack and centre their content
+    // into it instead.
     anchors.fill: parent
     active: area.viewMode === WindowModel.VIEW_WORKSPACES
 
@@ -124,7 +146,6 @@ Item {
       previewMode: area.previewMode
       captureLimit: area.captureLimit
       workspaceNames: area.workspaceNames
-      animationMs: area.animationMs
       renamingWorkspaceId: area.renamingWorkspaceId
       onCardHovered: function(index) { area.cardHovered(index) }
       onCardActivated: function(index) { area.cardActivated(index) }

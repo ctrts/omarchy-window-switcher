@@ -140,10 +140,22 @@ function selectionFitHeight(availableHeight, ring) {
   return Math.max(1, Math.floor((height - outline * 2) / SELECTED_SCALE))
 }
 
+// The same reserve across the width, which was missing. Cards could take
+// their whole share of the viewport, so selecting one in the first or last
+// column grew it straight into the view's `clip: true` edge and cut the
+// miniatures off — while an interior card merely overlapped its neighbour
+// and looked fine, which is why this only ever showed at the edges.
+function selectionFitWidth(availableWidth, ring) {
+  var width = Math.max(1, Number(availableWidth) || 1)
+  var outline = Math.max(0, Number(ring) || 0)
+  return Math.max(1, Math.floor((width - outline * 2) / SELECTED_SCALE))
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     SELECTED_SCALE: SELECTED_SCALE,
     selectionFitHeight: selectionFitHeight,
+    selectionFitWidth: selectionFitWidth,
     monitorAspect: monitorAspect,
     gridMetrics: gridMetrics,
     flowMetrics: flowMetrics,

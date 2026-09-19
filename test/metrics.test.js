@@ -100,6 +100,25 @@ console.log('ok - metrics')
     'the selected card keeps its borders inside the view')
 }
 
+// The same across the width. Reserving only the height let a selected card
+// in the first or last column grow into the view's clip edge, which cut the
+// miniatures off — the interior columns merely overlapped and looked fine.
+{
+  const viewport = 1800
+  const ring = 4
+  const fit = metricsModel.selectionFitWidth(viewport, ring)
+  const lone = metricsModel.gridMetrics(1, fit, 900, 12, 240, 16 / 9, 68)
+  assert.ok(lone.cardWidth * metricsModel.SELECTED_SCALE + ring * 2 <= viewport,
+    'a lone selected card keeps its full width inside the view')
+
+  const row = metricsModel.gridMetrics(3, fit, 900, 12, 240, 16 / 9, 68)
+  const overhang = row.cardWidth * (metricsModel.SELECTED_SCALE - 1) / 2
+  assert.ok(row.cardWidth * row.columns + overhang * 2 <= viewport,
+    'an edge card in a row has room to grow without being clipped')
+  assert.ok(metricsModel.selectionFitWidth(viewport, ring) < viewport,
+    'the width reserve actually reserves something')
+}
+
 assert.equal(metricsModel.monitorAspect([{}, { monitorRect: { width: 1920, height: 1200 } }]), 1.6,
   'cards take the shape of the monitor their windows are on')
 assert.equal(metricsModel.monitorAspect([]), 16 / 9, 'no placed window falls back to 16:9')

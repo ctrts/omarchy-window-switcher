@@ -28,6 +28,12 @@ GridView {
   cellWidth: metrics.cellWidth
   cellHeight: metrics.cellHeight
   topMargin: Math.max(0, Math.floor((height - rowCount * cellHeight) / 2))
+  // Centre the columns in the view the same way rows are centred. The
+  // cells are measured against a width that already holds back room for
+  // the selected card's growth, so the leftover splits evenly here and
+  // an outer card can grow without meeting the clip edge.
+  leftMargin: Math.max(0, Math.floor(
+    (width - cellWidth * Math.min(Math.max(count, 1), Math.max(1, metrics.columns))) / 2))
   currentIndex: selectedIndex
   boundsBehavior: Flickable.StopAtBounds
   interactive: contentHeight > height

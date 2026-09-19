@@ -6,8 +6,10 @@ at `93d286a` ("polish workspace switching and controls").
 
 ## Unreleased — fork
 
-Nothing below has been exercised on real hardware yet; every claim here is
-backed by the test suite and static analysis only.
+Most of this has now run on real hardware: Hyprland 0.56.2, Omarchy 4.0.4,
+where the switcher renders, the layout strip draws and applies, and the
+workspace cards show live previews. Anything still resting on the test suite
+and static analysis alone says so where it is claimed.
 
 ### Layouts
 
@@ -24,8 +26,8 @@ backed by the test suite and static analysis only.
 - Verified live on Hyprland 0.56.2 against real windows: every layout
   rearranges, a master orientation change takes effect, and a saved grid
   survives `hyprctl reload` and places a newly opened window. The strip UI
-  itself passes lint and the contract tests but has not been exercised on
-  screen yet.
+  itself passes lint and the contract tests, and has now been seen on screen
+  rendering correctly.
 
 ### Identity
 
@@ -111,14 +113,75 @@ backed by the test suite and static analysis only.
   haystack, and contract assertions added for the compositor-signal gating and
   the `searchBase` / `RECORD_FIELDS` invariant.
 
+### Navigation
+
+- **Vertical movement is reversible.** A run of vertical moves now holds the
+  column it started in, so landing in a short last row no longer rewrites it:
+  5 items across 3 columns goes 2 → Down → 4 → Up → 2 again, where it used to
+  drift to 1. `moveGrid` and `moveGrouped` take an optional `desiredColumn`
+  and keep their old behaviour without one; `columnOf` and `columnOfGrouped`
+  are the helpers that seed it. `Switcher.qml` drops the held column from
+  `onSelectedIndexChanged`, so no selection route can leave a stale one.
+
+### Cropping
+
+- **The selected card no longer grows into the view's clip edge.**
+  `CardFrame` scales the selected card by `SELECTED_SCALE` and adds a ring,
+  and the fitted grids reserved room for that — in the height only. Cards
+  could still take their whole share of the *width*, so selecting one in the
+  first or last column grew it past the view's `clip: true` boundary and cut
+  its miniatures off. An interior card merely overlapped its neighbour and
+  looked fine, which is why this only ever showed at the edges.
+  `selectionFitWidth` mirrors `selectionFitHeight`, and the view area now
+  reserves both axes.
+- **The card grid is centred, without giving the reserve back.** Reserving the
+  width was only half of it: the view loaders filled the parent while their
+  cells were measured against `fitWidth`, so the whole reserve piled up as
+  dead space on the right — 25px of margin on the left against 100px on the
+  right, with the grid sitting off-centre.
+  Sizing the loaders to `fitWidth` looks like the fix and is not: the cells
+  are measured against `fitWidth` too, so `columns x cellWidth` filled the
+  view exactly and cancelled the reserve out. The selected card's growth then
+  had nowhere to go and *both* outer cards lost an edge, which is worse than
+  the off-centre grid it replaced. The loaders stay full width and the grids
+  centre their columns with a `leftMargin`, the same way they already centre
+  their rows with `topMargin`, so the slack survives as growth room at both
+  ends. Measured on screen: the selected card's left and right borders now
+  come out 618px and 620px tall; before, the right was 257px of a possible
+  625 because it was clipped.
+- **The panel is larger** — 0.94 x 0.90 of the screen, up from 0.88 x 0.84.
+  The grid reserves the selection growth out of whatever width it is given,
+  so the extra becomes margin around the cards rather than bigger cards.
+- **Workspace miniatures fit their capture instead of filling it.** The
+  miniature is sized from the window's geometry, which is close to the
+  captured buffer's aspect but not identical — borders, the hairline inset
+  and rounding all shift it — and `anchors.fill` forced the capture into that
+  rect. The window view had always fitted its preview to the source aspect;
+  the miniature was the one place that did not.
+
+### Filter
+
+- **Ctrl+V pastes into the filter.** The filter is a keymap rather than a
+  `TextInput` — deliberately, since nearly every key is already a switcher
+  shortcut — so nothing was handling paste. It borrows Qt's clipboard through
+  an offscreen field rather than shelling out to `wl-paste`, because the
+  contract forbids this plugin from spawning commands.
+- **Composed characters reach the filter.** The typing test required
+  `event.text.length === 1`, which silently dropped anything a compose or dead
+  key produces as one event of several characters.
+
+### Install
+
+- **`install.sh`** validates the checkout, copies it without `.git`, `test/`
+  or the docs, rescans, and then *restarts the shell*. The restart is the
+  point: `keepLoaded: true` means a rescan keeps running the QML the shell
+  started with, so a long-lived shell reports the plugin as enabled, answers
+  `summon` with "ok", and shows nothing. It refuses while the screen is
+  locked and says so, rather than failing obscurely.
+
 ## Known gaps
 
 Carried over from upstream and not yet addressed:
-
-- Vertical grid navigation is not reversible. Clamping a move into a short last
-  row changes column, so Down-then-Up does not return to the starting index
-  (5 items across 3 columns: 2 → Down → 4 → Up → 1). A proper fix needs a
-  sticky desired-column, which changes the navigation signature.
 - Workspace cards build a full miniature delegate per window regardless of the
   capture budget; only the capture source is gated.
 - `WorkspaceGridView` re-slices its window array on any model change, which
@@ -126,7 +189,14 @@ Carried over from upstream and not yet addressed:
 - No accessibility semantics anywhere: no `Accessible.*` properties, and the
   search field is a Rectangle imitating a text input, so a screen reader
   announces nothing.
-- `animationMs` is threaded through every view and card and never read; the
-  animations hardcode their durations.
 - `ViewToggle` and `WorkspaceOrderToggle` are structurally identical and should
-  be one component.
+  be one component. Left alone on purpose: it is pure maintainability, both
+  files are pinned by contract assertions, and the merge is best made by
+  whoever next has a reason to open them.
+
+Addressed since:
+
+- `animationMs` was threaded through five components and read by none, so the
+  setting moved the overlay and left the cards behind. The window cards now
+  honour it; the workspace branch, which has no animation to drive, no longer
+  carries the property at all.

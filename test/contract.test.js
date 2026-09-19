@@ -157,6 +157,18 @@ assert.match(workspaceCard, /WindowModel\.workspaceAlias\(workspaceNames, groupD
 assert.match(filterPill, /requireConfirm: true/, 'pill close-all needs a confirming second click')
 assert.match(card, /Qt\.MiddleButton/, 'middle-click closes a window card')
 
+// Paste borrows Qt's clipboard rather than a subprocess, because the rule
+// below forbids spawning and that rule outranks the convenience.
+assert.match(keySurface, /Qt\.Key_V/, 'Ctrl+V is a filter paste, not an unhandled key')
+assert.match(switcher, /clipboardBridge\.paste\(\)/, 'paste reads the clipboard through Qt')
+assert.doesNotMatch(switcher, /["']wl-paste["']/, 'paste does not shell out to wl-paste')
+
+// The held column is what makes vertical movement reversible; clearing it
+// from the change handler is what keeps it from going stale.
+assert.match(switcher, /onSelectedIndexChanged:\s*if \(!keepingColumn\) desiredColumn = -1/,
+  'any selection change that is not a vertical move drops the held column')
+assert.match(switcher, /Nav\.columnOfGrouped\(/, 'grouped vertical moves hold a section-relative column')
+
 assert.doesNotMatch(allQml, /\bShellRoot\s*\{/, 'plugin does not create another shell root')
 assert.doesNotMatch(allQml, /\bProcess\s*\{/, 'plugin does not spawn commands')
 assert.doesNotMatch(allQml, /hyprctl|bash\s+-c|execDetached/, 'plugin does not build compositor shell commands')
