@@ -27,6 +27,13 @@ Item {
   property var filteredWindows: []
   property var mruKeys: []
   property int selectedIndex: -1
+  // The column a run of vertical moves is trying to hold, and the guard that
+  // keeps it alive across exactly those moves. Clearing it from the change
+  // handler rather than at each call site means a new selection route can
+  // never leave a stale column behind.
+  property int desiredColumn: -1
+  property bool keepingColumn: false
+  onSelectedIndexChanged: if (!keepingColumn) desiredColumn = -1
   property string query: ""
   property var activeFilter: ({ kind: WindowModel.FILTER_ALL })
   property var sessionFilter: null
@@ -326,6 +333,30 @@ Item {
     })
   }
 
+  // Ctrl+V. The filter is a keymap rather than a TextInput — deliberately,
+  // since nearly every key here is already a switcher shortcut — so nothing
+  // handles paste for us. This borrows Qt's own clipboard through an
+  // offscreen field instead of shelling out to wl-paste: the contract forbids
+  // this plugin from spawning commands, and that rule is worth more than the
+  // convenience of a subprocess.
+  function pasteIntoQuery() {
+    clipboardBridge.text = ""
+    clipboardBridge.paste()
+    var pasted = String(clipboardBridge.text || "").replace(/\s+/g, " ").trim()
+    clipboardBridge.text = ""
+    if (pasted) updateQuery(query + pasted)
+  }
+
+  TextInput {
+    id: clipboardBridge
+
+    // Never shown and never focused; it exists only to own a paste target.
+    visible: false
+    enabled: false
+    width: 0
+    height: 0
+  }
+
   function selectIndex(index) {
     selectedIndex = Nav.wrappedIndex(index, visibleItemCount())
     revealSelected()
@@ -336,19 +367,37 @@ Item {
     revealSelected()
   }
 
+  // Vertical moves hold the column they started in. Clamping into a short
+  // last row still decides where you land, but the held column decides where
+  // the next move aims, so Down-then-Up returns to where it began instead of
+  // drifting left. Cleared on any other kind of selection change, below.
   function selectGrid(horizontal, vertical) {
-    if (viewMode === WindowModel.VIEW_GROUPED) {
-      var sizes = []
+    var grouped = viewMode === WindowModel.VIEW_GROUPED
+    var sizes = []
+    if (grouped) {
       for (var i = 0; i < windowGroups.length; i++) sizes.push(windowGroups[i].size)
+    }
+    var cols = grouped ? viewArea.groupColumns
+      : (viewMode === WindowModel.VIEW_WORKSPACES ? viewArea.workspaceColumns : viewArea.flatColumns)
+
+    if (vertical && desiredColumn < 0) {
+      desiredColumn = grouped
+        ? Nav.columnOfGrouped(selectedIndex, sizes, cols)
+        : Nav.columnOf(selectedIndex, cols)
+    }
+
+    keepingColumn = !!vertical
+    if (grouped) {
       selectedIndex = Nav.moveGrouped(
-        selectedIndex, horizontal, vertical, sizes, viewArea.groupColumns)
+        selectedIndex, horizontal, vertical, sizes, cols, desiredColumn)
     } else if (viewMode === WindowModel.VIEW_WORKSPACES) {
       selectedIndex = Nav.moveGrid(
-        selectedIndex, horizontal, vertical, windowGroups.length, viewArea.workspaceColumns)
+        selectedIndex, horizontal, vertical, windowGroups.length, cols, desiredColumn)
     } else {
       selectedIndex = Nav.moveGrid(
-        selectedIndex, horizontal, vertical, filteredWindows.length, viewArea.flatColumns)
+        selectedIndex, horizontal, vertical, filteredWindows.length, cols, desiredColumn)
     }
+    keepingColumn = false
     revealSelected()
   }
 
@@ -895,6 +944,7 @@ Item {
           root.setFilter({ kind: WindowModel.FILTER_ALL })
         else root.cancel()
       }
+      onPasteRequested: root.pasteIntoQuery()
       onCommitRequested: root.commitSelected()
       onStepRequested: function(direction) { root.selectAdjacent(direction) }
       onGridMoveRequested: function(horizontal, vertical) { root.selectGrid(horizontal, vertical) }
@@ -916,8 +966,13 @@ Item {
       Rectangle {
         id: switcherCard
 
-        width: Math.max(360, Math.min(parent.width - Style.space(40), parent.width * 0.88))
-        height: Math.max(300, Math.min(parent.height - Style.space(40), parent.height * 0.84))
+        // 0.88 x 0.84 left the cards pressed against the panel edge once the
+        // selected one grew, with the layout strip and hints competing for the
+        // same height. A wider panel is the cheapest room to give: the grid
+        // reserves the selection growth out of whatever it gets, so every extra
+        // pixel here becomes margin around the cards rather than bigger cards.
+        width: Math.max(360, Math.min(parent.width - Style.space(24), parent.width * 0.94))
+        height: Math.max(300, Math.min(parent.height - Style.space(24), parent.height * 0.90))
         anchors.centerIn: parent
         color: Color.menu.background
         radius: Style.cornerRadius

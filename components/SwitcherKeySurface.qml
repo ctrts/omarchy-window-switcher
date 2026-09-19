@@ -27,9 +27,25 @@ Item {
   signal fullscreenToggleRequested()
   signal closeWindowRequested()
   signal queryEdited(string nextQuery)
+  signal pasteRequested()
   signal modifierReleased()
 
   focus: true
+
+  // Text that should land in the filter. The old test also required
+  // `length === 1`, which silently dropped anything a compose key or a dead
+  // key produces as a single event of more than one character. Every
+  // character still has to be printable, so control codes stay out.
+  function typesInto(event) {
+    if (event.modifiers !== Qt.NoModifier && event.modifiers !== Qt.ShiftModifier) return false
+    var text = event.text
+    if (!text || !text.length) return false
+    for (var i = 0; i < text.length; i++) {
+      var code = text.charCodeAt(i)
+      if (code < 32 || code === 127) return false
+    }
+    return true
+  }
 
   Keys.enabled: !surface.editingWorkspaceName
   Keys.priority: Keys.BeforeItem
@@ -89,12 +105,13 @@ Item {
     } else if (ctrl && event.key === Qt.Key_Delete) {
       surface.closeWindowRequested()
       event.accepted = true
+    } else if (ctrl && !alt && event.key === Qt.Key_V) {
+      surface.pasteRequested()
+      event.accepted = true
     } else if (Util.editsFilter(event, surface.query)) {
       surface.queryEdited(Util.editedFilter(event, surface.query))
       event.accepted = true
-    } else if (event.text && event.text.length === 1
-        && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127
-        && (event.modifiers === Qt.NoModifier || event.modifiers === Qt.ShiftModifier)) {
+    } else if (surface.typesInto(event)) {
       surface.queryEdited(surface.query + event.text)
       event.accepted = true
     }
